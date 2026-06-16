@@ -727,7 +727,7 @@
       }
 
       #btn-play-once {
-        background: linear-gradient(135deg, #19a14b, #1a9748);
+        background: linear-gradient(135deg, #16a34a, #15803d);
         color: #fff;
       }
       #btn-play-once:hover {
@@ -864,12 +864,14 @@
         <div class="btn selected-indicator" id="sel-indicator">میزان: —</div>
         <div class="btn-divider"></div>
         <button class="btn" onclick="app.insertRow()">Insert</button>
-        <button class="btn danger" onclick="app.deleteRow()">Del</button>
+        <button class="btn danger" onclick="app.deleteRow()">Empty</button>
         <div class="btn-divider"></div>
         <button class="btn" onclick="app.copyRow()">Copy</button>
         <button class="btn" onclick="app.pasteRow()">Paste</button>
         <div class="btn-divider"></div>
         <button class="btn danger" onclick="app.removeRow()">Remove</button>
+        <div class="btn-divider"></div>
+        <button class="btn" onclick="app.appendRow()">New Msr</button>
       </div>
     </div>
 
@@ -888,6 +890,47 @@
       </button>
       <div id="play-position"><div id="play-progress"></div></div>
       <span id="play-time">0:00</span>
+      <button
+        class="play-btn"
+        id="btn-save-wav"
+        onclick="app.saveWav()"
+        style="
+          background: linear-gradient(135deg, #7c3aed, #5b21b6);
+          color: #fff;
+          margin-right: 0;
+        "
+      >
+        💾 WAV
+      </button>
+    </div>
+
+    <!-- SAVE WAV MODAL -->
+    <div class="modal-overlay" id="modal-savewav">
+      <div class="modal">
+        <h3>▸ ذخیره فایل WAV</h3>
+        <div class="field">
+          <label>نام فایل (بدون پسوند)</label>
+          <input
+            type="text"
+            id="inp-wavname"
+            dir="ltr"
+            placeholder="my-rhythm"
+          />
+        </div>
+        <div class="modal-btns">
+          <button
+            class="btn"
+            onclick="
+              document.getElementById('modal-savewav').classList.remove('show')
+            "
+          >
+            انصراف
+          </button>
+          <button class="btn accent-btn" onclick="app.confirmSaveWav()">
+            دانلود WAV
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- TOAST -->
@@ -1278,6 +1321,20 @@
           render();
           selectRow(idx);
           toast(`میزان ${idx + 1} اضافه شد`);
+        }
+
+        function appendRow() {
+          if (state.rows.length === 0)
+            return toast("ابتدا یک قطعه ایجاد کنید", true);
+          state.rows.push(Array(state.cols).fill(""));
+          state.dirty = true;
+          render();
+          const newIdx = state.rows.length - 1;
+          selectRow(newIdx);
+          // scroll to bottom
+          const gridArea = document.getElementById("grid-area");
+          if (gridArea) gridArea.scrollTop = gridArea.scrollHeight;
+          toast("میزان " + (newIdx + 1) + " به انتها اضافه شد");
         }
 
         function deleteRow() {
@@ -1737,6 +1794,143 @@
           schedulePlayback(true);
         }
 
+        // ══════════════════════════════════════
+        // SAVE WAV
+        // ══════════════════════════════════════
+        function saveWav() {
+          if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+          if (Object.keys(sounds).length === 0)
+            return toast("ابتدا فایل‌های WAV را لود کنید", true);
+          const defaultName = (
+            state.filename ||
+            state.name ||
+            "rhythm"
+          ).replace(/[^a-zA-Z0-9_-]/g, "_");
+          document.getElementById("inp-wavname").value = defaultName;
+          document.getElementById("modal-savewav").classList.add("show");
+          setTimeout(() => document.getElementById("inp-wavname").focus(), 100);
+        }
+
+        async function confirmSaveWav() {
+          const fname =
+            document.getElementById("inp-wavname").value.trim() || "rhythm";
+          document.getElementById("modal-savewav").classList.remove("show");
+          toast("در حال رندر WAV...");
+
+          try {
+            const { events, totalDur } = buildTimeline();
+            if (totalDur === 0) return toast("گریدی وجود ندارد", true);
+
+            const ctx = getAudioCtx();
+            const sampleRate = ctx.sampleRate;
+            const totalSamples = Math.ceil(totalDur * sampleRate) + sampleRate; // +1s tail
+            const offline = new OfflineAudioContext(
+              2,
+              totalSamples,
+              sampleRate,
+            );
+
+            for (const ev of events) {
+              const buf = resolveSound(ev.symbol);
+              if (!buf) continue;
+
+              const src = offline.createBufferSource();
+              const gainNode = offline.createGain();
+              src.buffer = buf;
+
+              const playDur = ev.durationSec;
+              const bufDur = buf.duration;
+
+              if (bufDur > playDur) {
+                gainNode.gain.setValueAtTime(1, ev.startSec);
+                gainNode.gain.linearRampToValueAtTime(0, ev.startSec + playDur);
+                src.connect(gainNode);
+                gainNode.connect(offline.destination);
+                src.start(ev.startSec);
+                src.stop(ev.startSec + playDur + 0.01);
+              } else {
+                gainNode.gain.setValueAtTime(1, ev.startSec);
+                gainNode.gain.linearRampToValueAtTime(
+                  0.001,
+                  ev.startSec + bufDur,
+                );
+                src.connect(gainNode);
+                gainNode.connect(offline.destination);
+                src.start(ev.startSec);
+              }
+            }
+
+            const renderedBuffer = await offline.startRendering();
+            const wavBlob = audioBufferToWav(renderedBuffer);
+            const url = URL.createObjectURL(wavBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fname + ".wav";
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            toast("فایل " + fname + ".wav دانلود شد ✓");
+          } catch (err) {
+            toast("خطا در رندر: " + err.message, true);
+            console.error(err);
+          }
+        }
+
+        // Convert AudioBuffer to WAV Blob
+        function audioBufferToWav(buffer) {
+          const numChannels = buffer.numberOfChannels;
+          const sampleRate = buffer.sampleRate;
+          const numSamples = buffer.length;
+          const bytesPerSample = 2;
+          const blockAlign = numChannels * bytesPerSample;
+          const byteRate = sampleRate * blockAlign;
+          const dataSize = numSamples * blockAlign;
+          const arrayBuffer = new ArrayBuffer(44 + dataSize);
+          const view = new DataView(arrayBuffer);
+
+          function writeStr(offset, str) {
+            for (let i = 0; i < str.length; i++)
+              view.setUint8(offset + i, str.charCodeAt(i));
+          }
+          function writeInt16(offset, val) {
+            view.setInt16(offset, val, true);
+          }
+          function writeUint32(offset, val) {
+            view.setUint32(offset, val, true);
+          }
+          function writeUint16(offset, val) {
+            view.setUint16(offset, val, true);
+          }
+
+          writeStr(0, "RIFF");
+          writeUint32(4, 36 + dataSize);
+          writeStr(8, "WAVE");
+          writeStr(12, "fmt ");
+          writeUint32(16, 16);
+          writeUint16(20, 1); // PCM
+          writeUint16(22, numChannels);
+          writeUint32(24, sampleRate);
+          writeUint32(28, byteRate);
+          writeUint16(32, blockAlign);
+          writeUint16(34, bytesPerSample * 8);
+          writeStr(36, "data");
+          writeUint32(40, dataSize);
+
+          // interleave channels
+          let offset = 44;
+          for (let i = 0; i < numSamples; i++) {
+            for (let ch = 0; ch < numChannels; ch++) {
+              const sample = buffer.getChannelData(ch)[i];
+              const clamped = Math.max(-1, Math.min(1, sample));
+              writeInt16(
+                offset,
+                clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff,
+              );
+              offset += 2;
+            }
+          }
+          return new Blob([arrayBuffer], { type: "audio/wav" });
+        }
+
         document
           .getElementById("tempo-slider")
           .addEventListener("input", function () {
@@ -1752,6 +1946,7 @@
           confirmSaveAs,
           insertRow,
           deleteRow,
+          appendRow,
           copyRow,
           pasteRow,
           removeRow,
@@ -1759,6 +1954,8 @@
           loadSounds,
           playOnce,
           playLoop,
+          saveWav,
+          confirmSaveWav,
         };
       })();
     </script>
