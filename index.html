@@ -56,12 +56,13 @@
         <button class="btn" onclick="app.openFile()">Open</button>
         <button class="btn" onclick="app.saveFile()">Save</button>
         <button class="btn" onclick="app.saveAs()">Save As</button>
+        <button class="btn wav-btn" onclick="app.saveWav()">💾 WAV</button>
         <div class="btn-divider"></div>
         <button class="btn sound-btn" onclick="app.loadSounds()">
-          🎵 Sounds
+          Load Samples
         </button>
         <button class="btn view-btn" onclick="app.viewSounds()">
-          👁 View
+          View Samples
         </button>
       </div>
 
@@ -90,6 +91,8 @@
         <button class="btn danger" onclick="app.removeRow()">Remove Msr</button>
         <div class="btn-divider"></div>
         <button class="btn" onclick="app.appendRow()">New Msr</button>
+        <div class="btn-divider"></div>
+        <button class="btn triplet-btn" onclick="app.openTripletModal()">⑇ Tuplet</button>
       </div>
     </div>
 
@@ -124,19 +127,6 @@
       </div>
       <div id="play-position"><div id="play-progress"></div></div>
       <span id="play-time">0:00</span>
-      <button
-        class="play-btn"
-        id="btn-save-wav"
-        onclick="app.saveWav()"
-        style="
-          background: linear-gradient(135deg, #7c3aed, #5b21b6);
-          color: #fff;
-          margin-right: 0;
-          height: 38px;
-        "
-      >
-        💾 WAV
-      </button>
     </div>
 
     <!-- SAVE WAV MODAL -->
@@ -282,12 +272,95 @@
       <div class="modal modal-sounds">
         <h3>👁 فایل‌های صدای لود شده</h3>
         <div id="sounds-list-container">
-          <div id="sounds-list-empty" class="sounds-empty">هیچ صدایی لود نشده</div>
+          <div id="sounds-list-empty" class="sounds-empty">
+            هیچ صدایی لود نشده
+          </div>
           <div id="sounds-list"></div>
         </div>
-        <div class="modal-btns" style="margin-top:18px">
-          <button class="btn accent-btn" onclick="app.loadSounds()">+ لود صدا</button>
-          <button class="btn" onclick="document.getElementById('modal-viewsounds').classList.remove('show')">بستن</button>
+        <div class="modal-btns" style="margin-top: 18px">
+          <button
+            class="btn"
+            onclick="
+              document
+                .getElementById('modal-viewsounds')
+                .classList.remove('show')
+            "
+          >
+            بستن
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TUPLET / POLYRHYTHM MODAL -->
+    <div class="modal-overlay" id="modal-triplet">
+      <div class="modal modal-tuplet">
+        <h3>⑇ گروه ریتمی</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6">
+          چند سلول را به گروه ریتمی تبدیل می‌کند.<br>
+          زمان کل گروه = تعداد سلول‌های پایه × زمان یک سلول.
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <div class="field" style="flex:1;min-width:90px">
+            <label>شماره میزان</label>
+            <input type="number" id="inp-tuplet-row" min="1" dir="ltr" placeholder="مثال: 3" />
+          </div>
+          <div class="field" style="flex:1;min-width:90px">
+            <label>شماره تکنیک (سلول اول)</label>
+            <input type="number" id="inp-tuplet-col" min="1" dir="ltr" placeholder="مثال: 5" />
+          </div>
+        </div>
+        <div class="field">
+          <label style="margin-bottom:8px;display:block">نوع گروه ریتمی</label>
+          <div class="tuplet-radio-grid">
+            <label class="tuplet-radio-opt tuplet-opt-triplet">
+              <input type="radio" name="tuplet-type" value="3:2" checked />
+              <span class="tuplet-radio-label">3:2</span>
+              <span class="tuplet-radio-desc">تریوله — 3 نوت در فضای 2</span>
+            </label>
+            <label class="tuplet-radio-opt tuplet-opt-duplet">
+              <input type="radio" name="tuplet-type" value="2:3" />
+              <span class="tuplet-radio-label">2:3</span>
+              <span class="tuplet-radio-desc">دوپله — 2 نوت در فضای 3</span>
+            </label>
+            <label class="tuplet-radio-opt tuplet-opt-sextuplet">
+              <input type="radio" name="tuplet-type" value="6:4" />
+              <span class="tuplet-radio-label">6:4</span>
+              <span class="tuplet-radio-desc">سکستوله — 6 نوت در فضای 4</span>
+            </label>
+            <label class="tuplet-radio-opt tuplet-opt-quintuplet">
+              <input type="radio" name="tuplet-type" value="5:4" />
+              <span class="tuplet-radio-label">5:4</span>
+              <span class="tuplet-radio-desc">پنتوله — 5 نوت در فضای 4</span>
+            </label>
+            <label class="tuplet-radio-opt tuplet-opt-septuplet">
+              <input type="radio" name="tuplet-type" value="7:6" />
+              <span class="tuplet-radio-label">7:6</span>
+              <span class="tuplet-radio-desc">سپتوله — 7 نوت در فضای 6</span>
+            </label>
+            <label class="tuplet-radio-opt tuplet-opt-quadruplet">
+              <input type="radio" name="tuplet-type" value="4:3" />
+              <span class="tuplet-radio-label">4:3</span>
+              <span class="tuplet-radio-desc">کوادروپله — 4 نوت در فضای 3</span>
+            </label>
+          </div>
+          <div class="tuplet-remove-divider"></div>
+          <div class="tuplet-radio-grid">
+            <label class="tuplet-radio-opt tuplet-opt-half">
+              <input type="radio" name="tuplet-type" value="2:1" />
+              <span class="tuplet-radio-label">½</span>
+              <span class="tuplet-radio-desc">هالف — 2 نوت سه‌لاچنگ در فضای 1 سلول</span>
+            </label>
+            <label class="tuplet-radio-opt tuplet-opt-remove">
+              <input type="radio" name="tuplet-type" value="remove" />
+              <span class="tuplet-radio-label">✕</span>
+              <span class="tuplet-radio-desc">حذف تیوپلت — سلول‌ها خالی می‌شوند</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-btns" style="margin-top:16px">
+          <button class="btn" onclick="document.getElementById('modal-triplet').classList.remove('show')">انصراف</button>
+          <button class="btn accent-btn" onclick="app.confirmTriplet()">اعمال</button>
         </div>
       </div>
     </div>

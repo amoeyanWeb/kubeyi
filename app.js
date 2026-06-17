@@ -9,6 +9,8 @@ const app = (() => {
     cols: 8, // = numerator * 2
     rows: [], // array of arrays [cols]
     dynamics: [], // array of arrays [cols] — هر خانه: '', 'ff','f','mf','mp','p','pp','<','>','<>'
+    triplets: {}, // { "ri-ci": { type, baseCols, slots } }
+    tupletDynamics: {}, // { "ri-ci-slot": dynKey } برای slot‌های اضافی tuplet
     selected: -1, // selected row index (0-based)
     clipboard: null,
     clipboardDynamics: null,
@@ -156,8 +158,377 @@ const app = (() => {
   });
 
   // ══════════════════════════════════════
-  // SOUNDS
+  // POLYRHYTHM / TUPLET SYSTEM
   // ══════════════════════════════════════
+  // state.triplets = { "ri-ci": { type: "3:2"|"2:3"|"6:4"|"5:4"|"7:6"|"4:3", baseCols, slots } }
+  // baseCols = تعداد سلول‌های اصلی گرید که این گروه اشغال می‌کند
+  // slots = تعداد نوت‌ها در این گروه
+  // زمان هر نوت = (baseCols * cellDur) / slots
+
+  const TUPLET_TYPES = {
+    "3:2": { label: "3:2", slots: 3, baseCols: 2, color: "triplet",    desc: "تریوله (3 نوت در فضای 2)" },
+    "2:3": { label: "2:3", slots: 2, baseCols: 3, color: "duplet",     desc: "دوپله (2 نوت در فضای 3)" },
+    "6:4": { label: "6:4", slots: 6, baseCols: 4, color: "sextuplet",  desc: "سکستوله (6 نوت در فضای 4)" },
+    "5:4": { label: "5:4", slots: 5, baseCols: 4, color: "quintuplet", desc: "پنتوله (5 نوت در فضای 4)" },
+    "7:6": { label: "7:6", slots: 7, baseCols: 6, color: "septuplet",  desc: "سپتوله (7 نوت در فضای 6)" },
+    "4:3": { label: "4:3", slots: 4, baseCols: 3, color: "quadruplet", desc: "کوادروپله (4 نوت در فضای 3)" },
+    "2:1": { label: "\u00BD",   slots: 2, baseCols: 1, color: "half",       desc: "Half \u2014 2 \u0646\u0648\u062a \u0633\u0647\u200c\u0644\u0627\u0686\u0646\u06af \u062f\u0631 \u0641\u0636\u0627\u06cc 1 \u0633\u0644\u0648\u0644" },
+  };
+
+  // رنگ CSS class برای هر نوع
+  // triplet=قرمز, duplet=زرد, sextuplet=بنفش, quintuplet=آبی, septuplet=سبز, quadruplet=نارنجی
+
+  function getTupletAt(ri, ci) {
+    return (state.triplets && state.triplets[ri + "-" + ci]) || null;
+  }
+
+  // بررسی اینکه ci درون محدوده یک tuplet آغاز شده از startCi است
+  function getTupletRole(ri, ci) {
+    if (!state.triplets) return null;
+    // ci ممکن است start باشد
+    if (state.triplets[ri + "-" + ci]) return { startCi: ci };
+    // یا درون محدوده یک tuplet باشد
+    for (const key of Object.keys(state.triplets)) {
+      const [kri, kci] = key.split("-").map(Number);
+      if (kri !== ri) continue;
+      const t = state.triplets[key];
+      if (ci > kci && ci < kci + t.baseCols) return { startCi: kci };
+    }
+    return null;
+  }
+
+  function openTripletModal() {
+    if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+    document.getElementById("inp-tuplet-row").value =
+      state.selected >= 0 ? state.selected + 1 : "";
+    document.getElementById("inp-tuplet-col").value = "";
+    // پیش‌فرض اولین رادیو
+    const radios = document.querySelectorAll('input[name="tuplet-type"]');
+    if (radios.length) radios[0].checked = true;
+    document.getElementById("modal-triplet").classList.add("show");
+    setTimeout(() => document.getElementById("inp-tuplet-row").focus(), 100);
+  }
+
+  function confirmTriplet() {
+    const ri = parseInt(document.getElementById("inp-tuplet-row").value) - 1;
+    const ci = parseInt(document.getElementById("inp-tuplet-col").value) - 1;
+    const typeRadio = document.querySelector('input[name="tuplet-type"]:checked');
+    if (!typeRadio) return toast("نوع را انتخاب کنید", true);
+    const type = typeRadio.value;
+
+    document.getElementById("modal-triplet").classList.remove("show");
+
+    // --- حذف تیوپلت ---
+    if (type === "remove") {
+      if (isNaN(ri) || ri < 0 || ri >= state.rows.length)
+        return toast("شماره میزان نامعتبر است", true);
+      if (isNaN(ci) || ci < 0 || ci >= state.cols)
+        return toast("شماره تکنیک نامعتبر است", true);
+      // پیدا کردن start واقعی tuplet در این ci یا هر ci‌ای که این ci درونش باشد
+      let foundKey = null;
+      if (state.triplets) {
+        // اول چک کن خودش start باشه
+        if (state.triplets[ri + "-" + ci]) {
+          foundKey = ri + "-" + ci;
+        } else {
+          // بگرد ببین این ci درون کدام tuplet است
+          for (const key of Object.keys(state.triplets)) {
+            const [kri, kci] = key.split("-").map(Number);
+            if (kri !== ri) continue;
+            const t = state.triplets[key];
+            if (ci >= kci && ci < kci + t.baseCols) { foundKey = key; break; }
+          }
+        }
+      }
+      if (!foundKey) return toast("در این موقعیت گروه ریتمی‌ای یافت نشد", true);
+      const [fRi, fCi] = foundKey.split("-").map(Number);
+      removeTriplet(fRi, fCi);
+      return;
+    }
+
+    const def = TUPLET_TYPES[type];
+    if (!def) return toast("نوع نامعتبر", true);
+
+    if (isNaN(ri) || ri < 0 || ri >= state.rows.length)
+      return toast("شماره میزان نامعتبر است", true);
+    if (isNaN(ci) || ci < 0 || ci + def.baseCols > state.cols)
+      return toast(`شماره تکنیک نامعتبر — این نوع به ${def.baseCols} سلول متوالی نیاز دارد`, true);
+
+    // بررسی تداخل
+    for (let s = 0; s < def.baseCols; s++) {
+      if (getTupletRole(ri, ci + s)) {
+        return toast("یکی از سلول‌ها قبلاً عضو گروه ریتمی است", true);
+      }
+    }
+
+    if (!state.triplets) state.triplets = {};
+    state.triplets[ri + "-" + ci] = { type, baseCols: def.baseCols, slots: def.slots };
+
+    // مقداردهی اولیه slot‌های اضافی در tripletData
+    if (!state.tripletData) state.tripletData = {};
+    // slot‌های 0..baseCols-1 از row گرفته می‌شن، slot‌های بعدی از tripletData
+    // هر slot اضافی (index >= baseCols) باید در tripletData باشد
+    for (let s = def.baseCols; s < def.slots; s++) {
+      const key = `${ri}-${ci}-${s}`;
+      if (!state.tripletData[key]) state.tripletData[key] = "";
+    }
+
+    state.dirty = true;
+    render();
+    toast(`${def.desc} در میزان ${ri + 1}، تکنیک ${ci + 1}–${ci + def.baseCols} اعمال شد ✓`);
+  }
+
+  function removeTriplet(ri, startCi) {
+    if (!state.triplets) return;
+    const t = state.triplets[ri + "-" + startCi];
+    if (t) {
+      // پاک کردن tripletData این گروه
+      if (state.tripletData) {
+        for (let s = 0; s < t.slots; s++) {
+          delete state.tripletData[`${ri}-${startCi}-${s}`];
+        }
+      }
+      // پاک کردن سلول‌های اصلی گرید تا با اسکیل عادی نمایش یابند
+      for (let s = 0; s < t.baseCols; s++) {
+        if (state.rows[ri]) state.rows[ri][startCi + s] = "";
+        if (state.dynamics[ri]) state.dynamics[ri][startCi + s] = "";
+      }
+      // پاک کردن tupletDynamics این گروه
+      if (state.tupletDynamics) {
+        for (let s = 0; s < t.slots; s++) {
+          delete state.tupletDynamics[`${ri}-${startCi}-${s}`];
+        }
+      }
+    }
+    delete state.triplets[ri + "-" + startCi];
+    state.dirty = true;
+    render();
+    toast("گروه ریتمی حذف شد");
+  }
+
+  // رندر یک cell گروه ریتمی (tuplet)
+  function renderTupletCell(ri, ci, tuplet, rowEl, colsPerBeat) {
+    const def = TUPLET_TYPES[tuplet.type] || { slots: tuplet.slots, baseCols: tuplet.baseCols, label: "?", color: "triplet" };
+    const cell = document.createElement("div");
+    const beatClass = ci % colsPerBeat === 0 ? " beat-start" : "";
+    cell.className = `grid-cell tuplet-cell tuplet-${def.color}${beatClass}`;
+    // عرض متناسب با baseCols
+    cell.style.minWidth = `calc(var(--cell-w) * ${def.baseCols} + ${def.baseCols - 1}px)`;
+    cell.style.width = cell.style.minWidth;
+
+    // label بالا (label + دکمه حذف)
+    const labelRow = document.createElement("div");
+    labelRow.className = "tuplet-label-row";
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "tuplet-label";
+    labelEl.textContent = def.label;
+    labelRow.appendChild(labelEl);
+
+    const removeBtn = document.createElement("span");
+    removeBtn.className = "tuplet-remove";
+    removeBtn.textContent = "✕";
+    removeBtn.title = "حذف گروه ریتمی";
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeTriplet(ri, ci);
+    });
+    labelRow.appendChild(removeBtn);
+    cell.appendChild(labelRow);
+
+    // wrapper سلول‌ها
+    const wrapper = document.createElement("div");
+    wrapper.className = "tuplet-wrapper";
+
+    if (!state.tripletData) state.tripletData = {};
+
+    for (let slot = 0; slot < def.slots; slot++) {
+      const slotDiv = document.createElement("div");
+      slotDiv.className = "tuplet-slot";
+
+      // مقدار: slot < baseCols → از row، slot >= baseCols → از tripletData
+      let slotVal = "";
+      if (slot < def.baseCols) {
+        slotVal = (state.rows[ri][ci + slot] || "");
+      } else {
+        slotVal = (state.tripletData[`${ri}-${ci}-${slot}`] || "");
+      }
+
+      // دینامیک slot — کلید: "ri-ci_slot" در state.dynamics
+      // برای slot 0..baseCols-1 از dynamics معمولی استفاده می‌کنیم (ci+slot)
+      // برای slot >= baseCols از tupletDynamics
+      const dynKey = slot < def.baseCols
+        ? getCellDynamic(ri, ci + slot)
+        : ((state.tupletDynamics && state.tupletDynamics[`${ri}-${ci}-${slot}`]) || "");
+
+      if (slotVal && dynKey) {
+        const defDyn = DYNAMICS_ALL.find((d) => d.key === dynKey);
+        if (defDyn) slotDiv.style.backgroundColor = `var(${defDyn.bgVar})`;
+      }
+      if (slotVal) slotDiv.classList.add("has-value");
+
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.maxLength = 6;
+      inp.value = slotVal;
+      inp.dataset.row = ri;
+      inp.dataset.col = ci;
+      inp.dataset.tupletSlot = slot;
+
+      inp.addEventListener("focus", () => selectRow(ri));
+
+      inp.addEventListener("input", (e) => {
+        if (playState && playState.playing) stopPlayback();
+        const v = e.target.value.slice(0, 6);
+        e.target.value = v;
+        if (slot < def.baseCols) {
+          state.rows[ri][ci + slot] = v;
+        } else {
+          if (!state.tripletData) state.tripletData = {};
+          state.tripletData[`${ri}-${ci}-${slot}`] = v;
+        }
+        slotDiv.classList.toggle("has-value", !!v);
+        if (!v) {
+          slotDiv.style.backgroundColor = "";
+          // پاک کردن دینامیک
+          if (slot < def.baseCols) {
+            if (state.dynamics[ri]) state.dynamics[ri][ci + slot] = "";
+          } else {
+            if (state.tupletDynamics) delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
+          }
+        }
+        state.dirty = true;
+        updateStatus();
+      });
+
+      // راست‌کلیک / لانگ‌پرس → منوی دینامیک
+      const openDynForSlot = (anchorEl) => {
+        if (!inp.value.trim()) return;
+        if (slot < def.baseCols) {
+          const realCi = ci + slot;
+          if (dynMenuState.ri === ri && dynMenuState.ci === realCi) {
+            closeDynamicsMenu();
+          } else {
+            openDynamicsMenu(ri, realCi, anchorEl);
+          }
+        } else {
+          // برای slot‌های اضافی از یک کلید مصنوعی استفاده می‌کنیم
+          openTupletSlotDynMenu(ri, ci, slot, anchorEl);
+        }
+      };
+
+      inp.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openDynForSlot(inp);
+      });
+
+      // long press mobile
+      let lpt = null, lpf = false;
+      inp.addEventListener("touchstart", (e) => {
+        lpf = false;
+        lpt = setTimeout(() => {
+          lpf = true;
+          openDynForSlot(inp);
+        }, 500);
+      }, { passive: true });
+      inp.addEventListener("touchend", () => clearTimeout(lpt));
+      inp.addEventListener("touchmove", () => clearTimeout(lpt));
+      inp.addEventListener("click", (e) => {
+        if (lpf) { lpf = false; return; }
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        if (!isMobile) return;
+        openDynForSlot(inp);
+      });
+
+      slotDiv.appendChild(inp);
+      wrapper.appendChild(slotDiv);
+    }
+
+    cell.appendChild(wrapper);
+    rowEl.appendChild(cell);
+  }
+
+  // منوی دینامیک برای slot‌های اضافی tuplet (slot >= baseCols)
+  function openTupletSlotDynMenu(ri, ci, slot, anchorEl) {
+    const menu = document.getElementById("dynamics-menu");
+    if (!menu) return;
+    // از یک شناسه مصنوعی استفاده می‌کنیم: ri=-1 نشان‌دهنده tuplet extra slot
+    dynMenuState = { ri: ri, ci: ci, tupletSlot: slot };
+    if (!state.tupletDynamics) state.tupletDynamics = {};
+    const current = state.tupletDynamics[`${ri}-${ci}-${slot}`] || "";
+    menu.innerHTML = "";
+
+    const rowMain = document.createElement("div");
+    rowMain.className = "dyn-menu-row";
+    DYNAMICS_MAIN.forEach((def) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "dyn-opt" + (current === def.key ? " active" : "");
+      btn.style.color = `var(${def.cssVar})`;
+      btn.textContent = def.key;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!state.tupletDynamics) state.tupletDynamics = {};
+        state.tupletDynamics[`${ri}-${ci}-${slot}`] = def.key;
+        state.dirty = true;
+        closeDynamicsMenu();
+        render();
+      });
+      rowMain.appendChild(btn);
+    });
+    menu.appendChild(rowMain);
+
+    const divider = document.createElement("div");
+    divider.className = "dyn-menu-divider";
+    menu.appendChild(divider);
+
+    const rowShape = document.createElement("div");
+    rowShape.className = "dyn-menu-row";
+    DYNAMICS_SHAPE.forEach((def) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "dyn-opt" + (current === def.key ? " active" : "");
+      btn.style.color = `var(${def.cssVar})`;
+      btn.textContent = def.key;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!state.tupletDynamics) state.tupletDynamics = {};
+        state.tupletDynamics[`${ri}-${ci}-${slot}`] = def.key;
+        state.dirty = true;
+        closeDynamicsMenu();
+        render();
+      });
+      rowShape.appendChild(btn);
+    });
+    menu.appendChild(rowShape);
+
+    const rowReset = document.createElement("div");
+    rowReset.className = "dyn-menu-row";
+    const resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.className = "dyn-opt reset" + (current === "" ? " active" : "");
+    resetBtn.textContent = "حالت عادی";
+    resetBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (state.tupletDynamics) delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
+      state.dirty = true;
+      closeDynamicsMenu();
+      render();
+    });
+    rowReset.appendChild(resetBtn);
+    menu.appendChild(rowReset);
+
+    menu.classList.add("show");
+    const rect = anchorEl.getBoundingClientRect();
+    let left = rect.left;
+    if (left + 200 > window.innerWidth - 8) left = window.innerWidth - 200 - 8;
+    if (left < 8) left = 8;
+    let top = rect.bottom + 4;
+    if (top + 150 > window.innerHeight - 8) top = rect.top - 150 - 4;
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+  }
   const sounds = {}; // { filename: AudioBuffer }
 
   function updateSoundBadge() {
@@ -220,6 +591,24 @@ const app = (() => {
   // ══════════════════════════════════════
   // VIEW SOUNDS
   // ══════════════════════════════════════
+  let previewSource = null;
+
+  function playSoundPreview(name) {
+    const buf = sounds[name];
+    if (!buf) return;
+    const ctx = getAudioCtx();
+    if (previewSource) {
+      try {
+        previewSource.stop();
+      } catch (e) {}
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    previewSource = src;
+  }
+
   function viewSounds() {
     const list = document.getElementById("sounds-list");
     const empty = document.getElementById("sounds-list-empty");
@@ -237,9 +626,13 @@ const app = (() => {
         const item = document.createElement("div");
         item.className = "sound-item";
         item.innerHTML =
+          '<button class="sound-item-play" data-name="' + name + '" title="پخش">▶</button>' +
           '<span class="sound-item-name" title="' + name + '">' + name + "</span>" +
           '<span class="sound-item-dur">' + dur + "</span>" +
           '<button class="sound-item-del" data-name="' + name + '">✕</button>';
+        item.querySelector(".sound-item-play").onclick = function () {
+          playSoundPreview(this.dataset.name);
+        };
         item.querySelector(".sound-item-del").onclick = function () {
           delete sounds[this.dataset.name];
           updateSoundBadge();
@@ -330,6 +723,16 @@ const app = (() => {
 
       // cells
       for (let ci = 0; ci < cols; ci++) {
+        // بررسی tuplet
+        const tuplet = state.triplets && state.triplets[ri + "-" + ci];
+        if (tuplet && tuplet.baseCols) {
+          renderTupletCell(ri, ci, tuplet, rowEl, colsPerBeat);
+          ci += tuplet.baseCols - 1; // رد کردن سلول‌های پوشش‌داده‌شده
+          continue;
+        }
+        // سلول درون محدوده tuplet (رد می‌شود چون در renderTupletCell رندر شده)
+        if (getTupletRole(ri, ci)) continue;
+
         const cell = document.createElement("div");
         const val = row[ci] || "";
         cell.className =
@@ -529,6 +932,9 @@ const app = (() => {
       cols,
       rows: Array.from({ length: initRows }, () => Array(cols).fill("")),
       dynamics: Array.from({ length: initRows }, () => Array(cols).fill("")),
+      triplets: {},
+      tripletData: {},
+      tupletDynamics: {},
       selected: -1,
       clipboard: null,
       clipboardDynamics: null,
@@ -663,7 +1069,17 @@ const app = (() => {
           .join(","),
       )
       .join("\n");
-    return header + body;
+    // ذخیره تریوله‌ها
+    const tripletPart = Object.keys(state.triplets || {}).length > 0
+      ? "\nTRIPLETS:" + JSON.stringify(state.triplets)
+      : "";
+    const tripletDataPart = Object.keys(state.tripletData || {}).length > 0
+      ? "\nTRIPLET_DATA:" + JSON.stringify(state.tripletData)
+      : "";
+    const tupletDynPart = Object.keys(state.tupletDynamics || {}).length > 0
+      ? "\nTUPLET_DYN:" + JSON.stringify(state.tupletDynamics)
+      : "";
+    return header + body + tripletPart + tripletDataPart + tupletDynPart;
   }
 
   function deserialize(text) {
@@ -674,8 +1090,27 @@ const app = (() => {
     const colsNum = parseInt(cols);
     const rows = [];
     const dynamics = [];
-    lines
-      .slice(2)
+    let triplets = {};
+    let tripletData = {};
+    let tupletDynamics = {};
+    let dataLines = lines.slice(2);
+    // جدا کردن بخش تریوله از انتهای فایل
+    dataLines = dataLines.filter(l => {
+      if (l.startsWith("TRIPLETS:")) {
+        try { triplets = JSON.parse(l.slice(9)); } catch(e) {}
+        return false;
+      }
+      if (l.startsWith("TRIPLET_DATA:")) {
+        try { tripletData = JSON.parse(l.slice(13)); } catch(e) {}
+        return false;
+      }
+      if (l.startsWith("TUPLET_DYN:")) {
+        try { tupletDynamics = JSON.parse(l.slice(11)); } catch(e) {}
+        return false;
+      }
+      return true;
+    });
+    dataLines
       .filter((l) => l.trim())
       .forEach((l) => {
         const cells = l.split(",");
@@ -701,6 +1136,9 @@ const app = (() => {
       cols: colsNum,
       rows,
       dynamics,
+      triplets,
+      tripletData,
+      tupletDynamics,
     };
   }
 
@@ -832,6 +1270,11 @@ const app = (() => {
     scheduledNodes: [], // all BufferSourceNodes so we can stop them
   };
 
+  // فایل طولانیِ از‌پیش‌رندرشده‌ی Long Loop، برای استفاده مجدد توسط دکمه WAV
+  let longLoopBuffer = null;
+  let longLoopSignature = null;
+  let longLoopRendering = false;
+
   function getAudioCtx() {
     if (!audioCtx)
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -858,10 +1301,8 @@ const app = (() => {
 
   // build a flat list of {symbol, startSec, durationSec} events from current state
   function buildTimeline() {
-    const { rows, cols, tempo, meter } = state;
+    const { rows, cols, tempo, meter, triplets, tripletData, tupletDynamics } = state;
     const den = parseInt(meter.split("/")[1] || 4);
-    // duration of one cell in seconds
-    // each cell = one subdivision: for /4 meter, 4 subdivisions per beat → cell = (60/tempo)/4
     const subdivsPerBeat = den <= 4 ? 4 : 2;
     const cellDur = 60 / tempo / subdivsPerBeat;
 
@@ -872,6 +1313,48 @@ const app = (() => {
       const row = rows[ri];
       let ci = 0;
       while (ci < cols) {
+        // بررسی tuplet
+        const tuplet = triplets && triplets[ri + "-" + ci];
+        if (tuplet && tuplet.baseCols) {
+          const totalDur = tuplet.baseCols * cellDur;
+          const noteDur = totalDur / tuplet.slots;
+          for (let slot = 0; slot < tuplet.slots; slot++) {
+            let sym = "";
+            if (slot < tuplet.baseCols) {
+              sym = (row[ci + slot] || "").trim();
+            } else {
+              sym = ((tripletData && tripletData[`${ri}-${ci}-${slot}`]) || "").trim();
+            }
+            if (sym && sym !== "-") {
+              // دینامیک
+              let dyn = "";
+              if (slot < tuplet.baseCols) {
+                dyn = getCellDynamic(ri, ci + slot);
+              } else {
+                dyn = (tupletDynamics && tupletDynamics[`${ri}-${ci}-${slot}`]) || "";
+              }
+              events.push({
+                symbol: sym,
+                row: ri,
+                startSec: t + slot * noteDur,
+                durationSec: noteDur,
+                dynamic: dyn,
+                isTuplet: true,
+              });
+            }
+          }
+          t += totalDur;
+          ci += tuplet.baseCols;
+          continue;
+        }
+
+        // سلول‌های درون tuplet رد می‌شوند (چون در iteration قبلی مصرف شدند)
+        if (getTupletRole(ri, ci) && !(triplets && triplets[ri + "-" + ci])) {
+          ci++;
+          t += cellDur;
+          continue;
+        }
+
         const sym = row[ci] ? row[ci].trim() : "";
         if (!sym || sym === "-") {
           ci++;
@@ -895,8 +1378,6 @@ const app = (() => {
         t += dur;
         ci = next;
       }
-      // if row ended early (next was out of bounds), advance t to end of row
-      // t is already correct from the loop
     }
 
     return { events, totalDur: t };
@@ -1125,6 +1606,58 @@ const app = (() => {
     schedulePlayback(true);
   }
 
+  // امضایی از وضعیت فعلی قطعه (برای تشخیص اینکه فایل طولانیِ کش‌شده هنوز معتبر است یا نه)
+  function getTimelineSignature() {
+    return JSON.stringify({
+      rows: state.rows,
+      dynamics: state.dynamics,
+      tempo: state.tempo,
+      meter: state.meter,
+      sounds: Object.keys(sounds).sort(),
+    });
+  }
+
+  // قطعه را پشت‌سرهم کپی می‌کند تا یک بافر صوتی به طول durationSecs بسازد
+  async function renderLongLoopBuffer(durationSecs) {
+    const { events, totalDur } = buildTimeline();
+    if (totalDur === 0) throw new Error("گریدی وجود ندارد");
+
+    const ctx = getAudioCtx();
+    const sampleRate = ctx.sampleRate;
+    const totalSamples = Math.ceil(durationSecs * sampleRate);
+    const offline = new OfflineAudioContext(2, totalSamples, sampleRate);
+
+    let loopStart = 0;
+    while (loopStart < durationSecs) {
+      for (const ev of events) {
+        const absStart = loopStart + ev.startSec;
+        if (absStart >= durationSecs) continue;
+
+        const buf = resolveSound(ev.symbol);
+        if (!buf) continue;
+
+        const src = offline.createBufferSource();
+        const gainNode = offline.createGain();
+        src.buffer = buf;
+
+        const playDur = ev.durationSec;
+        const bufDur = buf.duration;
+
+        applyNoteGain(gainNode, ev, absStart, bufDur);
+        src.connect(gainNode);
+        gainNode.connect(offline.destination);
+        src.start(absStart);
+        if (bufDur > playDur) {
+          src.stop(absStart + playDur + 0.01);
+        }
+      }
+      loopStart += totalDur;
+    }
+
+    const renderedBuffer = await offline.startRendering();
+    return { buffer: renderedBuffer, loopDur: totalDur };
+  }
+
   function playLongLoop() {
     if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
     if (playState.playing) {
@@ -1135,23 +1668,59 @@ const app = (() => {
     setTimeout(() => document.getElementById("inp-longloop-minutes").focus(), 100);
   }
 
-  function confirmLongLoop() {
-    const minutes = parseFloat(document.getElementById("inp-longloop-minutes").value) || 5;
+  async function confirmLongLoop() {
+    if (longLoopRendering) return;
+    const minutes =
+      parseFloat(document.getElementById("inp-longloop-minutes").value) || 5;
     document.getElementById("modal-longloop").classList.remove("show");
     if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
-    const ctx = getAudioCtx();
+    if (Object.keys(sounds).length === 0)
+      return toast("ابتدا فایل‌های WAV را لود کنید", true);
+
+    if (playState.playing) stopPlayback();
+
     const durationSecs = minutes * 60;
-    schedulePlayback(true);
-    playState.longLoop = true;
-    playState.longLoopEndTime = ctx.currentTime + durationSecs;
-    playState.longLoopTotalSecs = durationSecs;
-    // auto-stop after duration
-    setTimeout(() => {
-      if (playState.playing && playState.longLoop) stopPlayback();
-    }, durationSecs * 1000 + 500);
-    toast(`⏱ Long Loop: ${minutes} دقیقه شروع شد`);
-    updatePlayButtons();
-    startLongLoopTimer(durationSecs);
+    longLoopRendering = true;
+    toast("⏳ در حال ساخت فایل طولانی...");
+
+    try {
+      const { buffer: renderedBuffer, loopDur } = await renderLongLoopBuffer(
+        durationSecs,
+      );
+
+      // کش کردن فایل ساخته‌شده، تا دکمه WAV همین فایل کامل را ذخیره کند
+      longLoopBuffer = renderedBuffer;
+      longLoopSignature = getTimelineSignature();
+
+      toast("✓ فایل شما ساخته شد");
+
+      const ctx = getAudioCtx();
+      const src = ctx.createBufferSource();
+      src.buffer = renderedBuffer;
+      src.connect(ctx.destination);
+
+      playState.playing = true;
+      playState.loop = true;
+      playState.longLoop = true;
+      playState.startTime = ctx.currentTime;
+      playState.totalDur = loopDur;
+      playState.longLoopEndTime = ctx.currentTime + renderedBuffer.duration;
+      playState.scheduledNodes = [src];
+
+      src.onended = () => {
+        if (playState.playing && playState.longLoop) stopPlayback();
+      };
+      src.start(0);
+
+      startProgressUI(loopDur, true);
+      updatePlayButtons();
+      startLongLoopTimer(renderedBuffer.duration);
+    } catch (err) {
+      toast("خطا در ساخت فایل طولانی: " + err.message, true);
+      console.error(err);
+    } finally {
+      longLoopRendering = false;
+    }
   }
 
   function startLongLoopTimer(totalSecs) {
@@ -1220,6 +1789,27 @@ const app = (() => {
     const fname =
       document.getElementById("inp-wavname").value.trim() || "rhythm";
     document.getElementById("modal-savewav").classList.remove("show");
+
+    // اگر یک فایل طولانیِ Long Loop مطابق با وضعیت فعلی قطعه از قبل ساخته شده،
+    // همان فایل کامل (به طول درخواست‌شده) ذخیره شود
+    if (longLoopBuffer && longLoopSignature === getTimelineSignature()) {
+      toast("در حال رندر WAV (فایل طولانی)...");
+      try {
+        const wavBlob = audioBufferToWav(longLoopBuffer);
+        const url = URL.createObjectURL(wavBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fname + ".wav";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        toast("فایل " + fname + ".wav (فایل طولانی) دانلود شد ✓");
+      } catch (err) {
+        toast("خطا در رندر: " + err.message, true);
+        console.error(err);
+      }
+      return;
+    }
+
     toast("در حال رندر WAV...");
 
     try {
@@ -1349,5 +1939,7 @@ const app = (() => {
     startLongLoopTimer,
     saveWav,
     confirmSaveWav,
+    openTripletModal,
+    confirmTriplet,
   };
 })();

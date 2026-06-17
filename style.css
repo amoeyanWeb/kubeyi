@@ -321,7 +321,9 @@ body {
 /* Grid rows */
 .grid-row {
   display: flex;
+  height: var(--cell-h);
   border-bottom: 1px solid var(--border);
+  overflow: visible;
 }
 
 .grid-row:hover .row-num {
@@ -780,6 +782,17 @@ body {
   border-color: #6b7280;
 }
 
+.btn.wav-btn {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  border-color: #7c3aed;
+  color: #fff;
+  font-size: 11px;
+}
+.btn.wav-btn:hover {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  border-color: #8b5cf6;
+}
+
 /* ══════════════ SOUNDS MODAL ══════════════ */
 .modal-sounds {
   width: 420px;
@@ -828,6 +841,23 @@ body {
   color: var(--text-dim);
   font-family: "Courier New", monospace;
   white-space: nowrap;
+}
+.sound-item-play {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 7px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.sound-item-play:hover {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
 }
 .sound-item-del {
   background: transparent;
@@ -925,10 +955,12 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  height: 38px;
+  box-sizing: border-box;
   background: rgba(124, 58, 237, 0.12);
   border: 1px solid rgba(124, 58, 237, 0.35);
   border-radius: 8px;
-  padding: 4px 10px 4px 6px;
+  padding: 0 10px 0 6px;
   flex-shrink: 0;
   transition: opacity 0.3s;
 }
@@ -973,6 +1005,7 @@ body {
 #llt-text.ending {
   color: #f59e0b;
 }
+#play-position {
   flex: 1;
   height: 6px;
   background: var(--surface2);
@@ -993,7 +1026,13 @@ body {
   color: var(--text-dim);
   font-family: "Courier New", monospace;
   min-width: 50px;
-  text-align: right;
+  text-align: center;
+  background: transparent;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 /* highlight playing row */
@@ -1015,4 +1054,210 @@ body {
     font-size: 10px;
     min-width: 40px;
   }
+}
+
+
+/* ══════════════════════════════════════
+   TUPLET / POLYRHYTHM SYSTEM
+   رنگ‌ها: triplet=قرمز، duplet=زرد، quintuplet=آبی، sextuplet=بنفش، septuplet=سبز، quadruplet=نارنجی
+   ══════════════════════════════════════ */
+
+/* متغیرهای رنگ tuplet */
+:root {
+  --tuplet-triplet:    #dc2626;
+  --tuplet-triplet-bg: rgba(220, 38, 38, 0.07);
+  --tuplet-triplet-slot: rgba(220, 38, 38, 0.22);
+  --tuplet-duplet:    #ca8a04;
+  --tuplet-duplet-bg: rgba(202, 138, 4, 0.07);
+  --tuplet-duplet-slot: rgba(202, 138, 4, 0.22);
+  --tuplet-quintuplet:    #2563eb;
+  --tuplet-quintuplet-bg: rgba(37, 99, 235, 0.07);
+  --tuplet-quintuplet-slot: rgba(37, 99, 235, 0.22);
+  --tuplet-sextuplet:    #7c3aed;
+  --tuplet-sextuplet-bg: rgba(124, 58, 237, 0.07);
+  --tuplet-sextuplet-slot: rgba(124, 58, 237, 0.22);
+  --tuplet-septuplet:    #16a34a;
+  --tuplet-septuplet-bg: rgba(22, 163, 74, 0.07);
+  --tuplet-septuplet-slot: rgba(22, 163, 74, 0.22);
+  --tuplet-quadruplet:    #ea580c;
+  --tuplet-quadruplet-bg: rgba(234, 88, 12, 0.07);
+  --tuplet-quadruplet-slot: rgba(234, 88, 12, 0.22);
+  --tuplet-half:    #0d9488;
+  --tuplet-half-bg: rgba(13, 148, 136, 0.07);
+  --tuplet-half-slot: rgba(13, 148, 136, 0.22);
+}
+
+.grid-cell.tuplet-cell {
+  border-radius: 6px;
+  border-width: 2px !important;
+  border-style: solid !important;
+  box-sizing: border-box !important;
+  height: var(--cell-h) !important;
+  align-self: center;
+  padding: 2px 2px 2px !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tuplet-triplet    { border-color: var(--tuplet-triplet)    !important; background: var(--tuplet-triplet-bg)    !important; }
+.tuplet-duplet     { border-color: var(--tuplet-duplet)     !important; background: var(--tuplet-duplet-bg)     !important; }
+.tuplet-quintuplet { border-color: var(--tuplet-quintuplet) !important; background: var(--tuplet-quintuplet-bg) !important; }
+.tuplet-sextuplet  { border-color: var(--tuplet-sextuplet)  !important; background: var(--tuplet-sextuplet-bg)  !important; }
+.tuplet-septuplet  { border-color: var(--tuplet-septuplet)  !important; background: var(--tuplet-septuplet-bg)  !important; }
+.tuplet-quadruplet { border-color: var(--tuplet-quadruplet) !important; background: var(--tuplet-quadruplet-bg) !important; }
+.tuplet-half       { border-color: var(--tuplet-half)       !important; background: var(--tuplet-half-bg)       !important; }
+
+.tuplet-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+  margin-bottom: 2px;
+  line-height: 1;
+}
+.tuplet-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.tuplet-triplet    .tuplet-label { color: var(--tuplet-triplet); }
+.tuplet-duplet     .tuplet-label { color: var(--tuplet-duplet); }
+.tuplet-quintuplet .tuplet-label { color: var(--tuplet-quintuplet); }
+.tuplet-sextuplet  .tuplet-label { color: var(--tuplet-sextuplet); }
+.tuplet-septuplet  .tuplet-label { color: var(--tuplet-septuplet); }
+.tuplet-quadruplet .tuplet-label { color: var(--tuplet-quadruplet); }
+.tuplet-half       .tuplet-label { color: var(--tuplet-half); }
+
+.tuplet-remove {
+  font-size: 9px;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  border-radius: 2px;
+  transition: opacity 0.15s;
+}
+.tuplet-remove:hover { opacity: 1; }
+
+.tuplet-wrapper {
+  display: flex;
+  flex-direction: row;
+  gap: 1px;
+  flex: 1;
+  width: 100%;
+}
+
+.tuplet-slot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  min-width: 0;
+  min-height: 22px;
+  transition: background 0.1s;
+}
+.tuplet-triplet    .tuplet-slot { border-color: rgba(220, 38, 38, 0.25); }
+.tuplet-duplet     .tuplet-slot { border-color: rgba(202, 138, 4, 0.25); }
+.tuplet-quintuplet .tuplet-slot { border-color: rgba(37, 99, 235, 0.25); }
+.tuplet-sextuplet  .tuplet-slot { border-color: rgba(124, 58, 237, 0.25); }
+.tuplet-septuplet  .tuplet-slot { border-color: rgba(22, 163, 74, 0.25); }
+.tuplet-quadruplet .tuplet-slot { border-color: rgba(234, 88, 12, 0.25); }
+.tuplet-half       .tuplet-slot { border-color: rgba(13, 148, 136, 0.25); }
+
+.tuplet-triplet    .tuplet-slot.has-value { background: var(--tuplet-triplet-slot); }
+.tuplet-duplet     .tuplet-slot.has-value { background: var(--tuplet-duplet-slot); }
+.tuplet-quintuplet .tuplet-slot.has-value { background: var(--tuplet-quintuplet-slot); }
+.tuplet-sextuplet  .tuplet-slot.has-value { background: var(--tuplet-sextuplet-slot); }
+.tuplet-septuplet  .tuplet-slot.has-value { background: var(--tuplet-septuplet-slot); }
+.tuplet-quadruplet .tuplet-slot.has-value { background: var(--tuplet-quadruplet-slot); }
+.tuplet-half       .tuplet-slot.has-value { background: var(--tuplet-half-slot); }
+
+.tuplet-slot input {
+  width: 100%;
+  font-size: 10px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  padding: 2px 1px;
+  font-family: inherit;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.triplet-btn {
+  color: var(--tuplet-triplet) !important;
+  border-color: var(--tuplet-triplet) !important;
+  font-weight: 600;
+}
+.triplet-btn:hover {
+  background: rgba(220, 38, 38, 0.1) !important;
+}
+
+.modal-tuplet {
+  max-width: 460px;
+  width: 95vw;
+}
+
+.tuplet-radio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.tuplet-radio-opt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  border: 2px solid currentColor;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  background: color-mix(in srgb, currentColor 5%, var(--surface));
+  opacity: 0.65;
+}
+.tuplet-radio-opt input[type="radio"] {
+  flex-shrink: 0;
+}
+.tuplet-radio-label {
+  font-size: 13px;
+  font-weight: 800;
+  min-width: 30px;
+}
+.tuplet-radio-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+
+/* رنگ هر آپشن = رنگ همان تیوپلت در گرید */
+.tuplet-opt-triplet    { color: var(--tuplet-triplet);    border-color: var(--tuplet-triplet);    background: var(--tuplet-triplet-bg); }
+.tuplet-opt-duplet     { color: var(--tuplet-duplet);     border-color: var(--tuplet-duplet);     background: var(--tuplet-duplet-bg); }
+.tuplet-opt-quintuplet { color: var(--tuplet-quintuplet); border-color: var(--tuplet-quintuplet); background: var(--tuplet-quintuplet-bg); }
+.tuplet-opt-sextuplet  { color: var(--tuplet-sextuplet);  border-color: var(--tuplet-sextuplet);  background: var(--tuplet-sextuplet-bg); }
+.tuplet-opt-septuplet  { color: var(--tuplet-septuplet);  border-color: var(--tuplet-septuplet);  background: var(--tuplet-septuplet-bg); }
+.tuplet-opt-quadruplet { color: var(--tuplet-quadruplet); border-color: var(--tuplet-quadruplet); background: var(--tuplet-quadruplet-bg); }
+.tuplet-opt-half       { color: var(--tuplet-half);       border-color: var(--tuplet-half);       background: var(--tuplet-half-bg); }
+.tuplet-opt-remove     { color: var(--red);               border-color: var(--red);               background: rgba(220, 38, 38, 0.06); }
+
+.tuplet-remove-divider {
+  border-top: 1px dashed var(--border);
+  margin: 8px 0 6px;
+}
+
+.tuplet-radio-opt:has(input:checked) {
+  opacity: 1;
+  filter: brightness(0.88) saturate(1.4);
+}
+.tuplet-radio-opt:hover {
+  opacity: 1;
+  filter: brightness(0.93);
 }
