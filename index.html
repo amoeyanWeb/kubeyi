@@ -60,6 +60,9 @@
         <button class="btn sound-btn" onclick="app.loadSounds()">
           🎵 Sounds
         </button>
+        <button class="btn view-btn" onclick="app.viewSounds()">
+          👁 View
+        </button>
       </div>
 
       <!-- GRID AREA -->
@@ -75,16 +78,16 @@
         <div class="panel-title">ویرایش</div>
         <div class="btn selected-indicator" id="sel-indicator">میزان: —</div>
         <div class="btn-divider"></div>
-        <button class="btn" onclick="app.insertRow()">Insert</button>
-        <button class="btn danger" onclick="app.deleteRow()">Empty</button>
+        <button class="btn" onclick="app.insertRow()">Insert Empty Msr</button>
+        <button class="btn danger" onclick="app.deleteRow()">Empty Msr</button>
         <div class="btn-divider"></div>
-        <button class="btn" onclick="app.copyRow()">Copy</button>
-        <button class="btn" onclick="app.pasteRow()">insert clipboard</button>
+        <button class="btn" onclick="app.copyRow()">Copy Msr</button>
+        <button class="btn" onclick="app.pasteRow()">insert copied</button>
         <button class="btn" onclick="app.pasteRowReplace()">
-          Paste Replace
+          Paste & Replace
         </button>
         <div class="btn-divider"></div>
-        <button class="btn danger" onclick="app.removeRow()">Remove</button>
+        <button class="btn danger" onclick="app.removeRow()">Remove Msr</button>
         <div class="btn-divider"></div>
         <button class="btn" onclick="app.appendRow()">New Msr</button>
       </div>
@@ -103,14 +106,18 @@
       <button class="play-btn" id="btn-play-loop" onclick="app.playLoop()">
         ⟳ Loop
       </button>
-      <button class="play-btn" id="btn-play-long-loop" onclick="app.playLongLoop()">
+      <button
+        class="play-btn"
+        id="btn-play-long-loop"
+        onclick="app.playLongLoop()"
+      >
         ⏱ Long Loop
       </button>
       <div id="long-loop-timer" class="long-loop-timer hidden">
         <div class="llt-ring">
           <svg viewBox="0 0 36 36">
-            <circle class="llt-track" cx="18" cy="18" r="15.9"/>
-            <circle class="llt-fill" id="llt-arc" cx="18" cy="18" r="15.9"/>
+            <circle class="llt-track" cx="18" cy="18" r="15.9" />
+            <circle class="llt-fill" id="llt-arc" cx="18" cy="18" r="15.9" />
           </svg>
         </div>
         <span id="llt-text">0:00</span>
@@ -257,13 +264,30 @@
         <div class="modal-btns">
           <button
             class="btn"
-            onclick="document.getElementById('modal-longloop').classList.remove('show')"
+            onclick="
+              document.getElementById('modal-longloop').classList.remove('show')
+            "
           >
             انصراف
           </button>
           <button class="btn accent-btn" onclick="app.confirmLongLoop()">
             شروع
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW SOUNDS MODAL -->
+    <div class="modal-overlay" id="modal-viewsounds">
+      <div class="modal modal-sounds">
+        <h3>👁 فایل‌های صدای لود شده</h3>
+        <div id="sounds-list-container">
+          <div id="sounds-list-empty" class="sounds-empty">هیچ صدایی لود نشده</div>
+          <div id="sounds-list"></div>
+        </div>
+        <div class="modal-btns" style="margin-top:18px">
+          <button class="btn accent-btn" onclick="app.loadSounds()">+ لود صدا</button>
+          <button class="btn" onclick="document.getElementById('modal-viewsounds').classList.remove('show')">بستن</button>
         </div>
       </div>
     </div>

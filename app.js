@@ -209,9 +209,47 @@ const app = (() => {
 
       updateSoundBadge();
       toast(loaded + " فایل WAV با موفقیت لود شد ✓");
+      // اگر modal باز بود، رفرش بشه
+      const modal = document.getElementById("modal-viewsounds");
+      if (modal && modal.classList.contains("show")) viewSounds();
     };
 
     input.click();
+  }
+
+  // ══════════════════════════════════════
+  // VIEW SOUNDS
+  // ══════════════════════════════════════
+  function viewSounds() {
+    const list = document.getElementById("sounds-list");
+    const empty = document.getElementById("sounds-list-empty");
+    const keys = Object.keys(sounds).sort();
+
+    list.innerHTML = "";
+
+    if (keys.length === 0) {
+      empty.style.display = "block";
+    } else {
+      empty.style.display = "none";
+      keys.forEach((name) => {
+        const buf = sounds[name];
+        const dur = buf ? buf.duration.toFixed(2) + "s" : "?";
+        const item = document.createElement("div");
+        item.className = "sound-item";
+        item.innerHTML =
+          '<span class="sound-item-name" title="' + name + '">' + name + "</span>" +
+          '<span class="sound-item-dur">' + dur + "</span>" +
+          '<button class="sound-item-del" data-name="' + name + '">✕</button>';
+        item.querySelector(".sound-item-del").onclick = function () {
+          delete sounds[this.dataset.name];
+          updateSoundBadge();
+          viewSounds(); // refresh
+        };
+        list.appendChild(item);
+      });
+    }
+
+    document.getElementById("modal-viewsounds").classList.add("show");
   }
 
   // ══════════════════════════════════════
@@ -233,6 +271,7 @@ const app = (() => {
   function render() {
     closeDynamicsMenu();
     const { name, meter, tempo, cols, rows, selected } = state;
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
     // topbar
     document.getElementById("disp-name").textContent = name || "—";
@@ -346,6 +385,25 @@ const app = (() => {
         inp.addEventListener("touchmove", () => {
           clearTimeout(longPressTimer);
         });
+
+        // در موبایل: تپ ساده روی خانه‌ای که متن دارد، هم امکان ویرایش متن
+        // (فوکوس و کیبورد) را حفظ می‌کند و هم منوی دینامیک را باز/بسته می‌کند
+        inp.addEventListener("click", (e) => {
+          if (longPressFired) {
+            // قبلاً با long-press باز/بسته شد، دوباره toggle نشود
+            longPressFired = false;
+            return;
+          }
+          if (!isMobile) return;
+          if (!inp.value.trim()) return;
+          e.stopPropagation();
+          if (dynMenuState.ri === ri && dynMenuState.ci === ci) {
+            closeDynamicsMenu();
+          } else {
+            openDynamicsMenu(ri, ci, inp);
+          }
+        });
+
         inp.addEventListener("input", (e) => {
           if (playState && playState.playing) stopPlayback();
           const v = e.target.value.slice(0, 6);
@@ -858,25 +916,34 @@ const app = (() => {
     const shapeSpan = Math.max(0.001, span - fadeOutDur);
     const fadeEndVal = trim ? 0 : 0.001;
 
+    // مقدار اولیه gainNode به‌صورت پیش‌فرض 1.0 است.
+    // برای جلوگیری از ramp ناخواسته از 1.0 به مقدار اول،
+    // ابتدا زمان‌بندی‌ها را لغو کرده و مقدار را از زمان 0 صریحاً ست می‌کنیم.
+    gainNode.gain.cancelScheduledValues(0);
+
     if (isShapeDynamic(dyn)) {
       const peak = DYNAMIC_GAIN.mf;
       const lo = peak * SHAPE_LOW_RATIO;
       if (dyn === "<") {
         // کرشندو: شروع ساکت، اوج در پایان بخش اصلی نت
+        gainNode.gain.setValueAtTime(lo, 0);
         gainNode.gain.setValueAtTime(lo, absStart);
         gainNode.gain.linearRampToValueAtTime(peak, absStart + shapeSpan);
       } else if (dyn === ">") {
         // دیکرشندو: شروع بلند، ساکت‌شدن تا پایان بخش اصلی نت
+        gainNode.gain.setValueAtTime(peak, 0);
         gainNode.gain.setValueAtTime(peak, absStart);
         gainNode.gain.linearRampToValueAtTime(lo, absStart + shapeSpan);
       } else {
         // قوسی (<>): ساکت → اوج در میانه → ساکت
+        gainNode.gain.setValueAtTime(lo, 0);
         gainNode.gain.setValueAtTime(lo, absStart);
         gainNode.gain.linearRampToValueAtTime(peak, absStart + shapeSpan / 2);
         gainNode.gain.linearRampToValueAtTime(lo, absStart + shapeSpan);
       }
     } else {
       const g = DYNAMIC_GAIN[dyn] ?? DYNAMIC_GAIN.mf;
+      gainNode.gain.setValueAtTime(g, 0);
       gainNode.gain.setValueAtTime(g, absStart);
     }
     gainNode.gain.linearRampToValueAtTime(fadeEndVal, absStart + span);
@@ -1274,6 +1341,7 @@ const app = (() => {
     removeRow,
     changeTempo,
     loadSounds,
+    viewSounds,
     playOnce,
     playLoop,
     playLongLoop,
