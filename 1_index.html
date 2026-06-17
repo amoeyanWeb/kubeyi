@@ -1,0 +1,1963 @@
+<!doctype html>
+<html lang="fa" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Buskit Rhythm Editor</title>
+    <style>
+      :root {
+        --bg: #f0f2f5;
+        --surface: #ffffff;
+        --surface2: #e8ecf0;
+        --border: #c8d0d8;
+        --accent: #c27d00;
+        --accent2: #2d6a9f;
+        --green: #16a34a;
+        --red: #dc2626;
+        --text: #1a2030;
+        --text-dim: #6b7280;
+        --cell-w: 52px;
+        --cell-h: 38px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      /* ══════════════ TOP BAR ══════════════ */
+      #topbar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-shrink: 0;
+        direction: rtl;
+      }
+
+      #topbar .logo {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--accent);
+        letter-spacing: 2px;
+      }
+
+      #topbar .piece-info {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex: 1;
+      }
+
+      #topbar .info-group {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      #topbar .info-label {
+        font-size: 9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      #topbar .info-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      #topbar .info-value.accent {
+        color: var(--accent);
+      }
+
+      .separator {
+        width: 1px;
+        height: 30px;
+        background: var(--border);
+      }
+
+      .tempo-group {
+        min-width: 160px;
+      }
+
+      .tempo-slider-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      #tempo-slider {
+        direction: ltr;
+        -webkit-appearance: none;
+        appearance: none;
+        width: 110px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border);
+        outline: none;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      #tempo-slider:not([disabled]) {
+        background: linear-gradient(
+          to right,
+          var(--accent) 0%,
+          var(--accent) var(--val, 50%),
+          var(--border) var(--val, 50%)
+        );
+      }
+
+      #tempo-slider[disabled] {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      #tempo-slider {
+        user-select: none;
+        touch-action: none;
+      }
+
+      #tempo-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+      }
+
+      #tempo-slider::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+      }
+
+      /* ══════════════ MAIN LAYOUT ══════════════ */
+      #main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* ══════════════ LEFT PANEL ══════════════ */
+      #left-panel {
+        width: 110px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 12px 8px;
+        gap: 6px;
+        flex-shrink: 0;
+        order: 1;
+      }
+
+      .panel-title {
+        font-size: 9px;
+        color: var(--text-dim);
+        text-align: center;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+      }
+
+      .btn {
+        padding: 7px 4px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.15s;
+        font-family: inherit;
+        letter-spacing: 0.5px;
+      }
+
+      .btn:hover {
+        background: var(--accent2);
+        border-color: var(--accent2);
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn.danger:hover {
+        background: var(--red);
+        border-color: var(--red);
+      }
+      .btn.selected-indicator {
+        font-size: 10px;
+        color: var(--text-dim);
+        background: transparent;
+        border: 1px dashed var(--border);
+        cursor: default;
+        padding: 4px;
+      }
+      .btn.selected-indicator:hover {
+        background: transparent;
+        border-color: var(--border);
+      }
+
+      .btn-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+      }
+
+      /* ══════════════ RIGHT PANEL ══════════════ */
+      #right-panel {
+        width: 100px;
+        background: var(--surface);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 12px 8px;
+        gap: 6px;
+        flex-shrink: 0;
+        order: 3;
+      }
+
+      .btn.accent-btn {
+        background: linear-gradient(135deg, #f0a500, #c27d00);
+        border-color: #f0a500;
+        color: #000;
+      }
+      .btn.accent-btn:hover {
+        background: linear-gradient(135deg, #ffc107, #f0a500);
+      }
+
+      /* ══════════════ GRID AREA ══════════════ */
+      #grid-area {
+        flex: 1;
+        overflow: auto;
+        order: 2;
+        padding: 0;
+        background: var(--bg);
+      }
+
+      #grid-wrapper {
+        min-width: max-content;
+        padding: 0;
+      }
+
+      /* Column header row */
+      #col-header {
+        display: flex;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bg);
+        border-bottom: 2px solid var(--accent);
+      }
+
+      .col-header-corner {
+        width: 52px;
+        min-width: 52px;
+        background: var(--surface);
+        border-bottom: 2px solid var(--accent);
+        border-right: 1px solid var(--border);
+      }
+
+      .col-num {
+        width: var(--cell-w);
+        min-width: var(--cell-w);
+        height: 28px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--text-dim);
+        font-weight: 600;
+      }
+
+      .col-num.beat-start {
+        background: var(--surface2);
+        color: var(--accent);
+        font-size: 11px;
+      }
+
+      /* Grid rows */
+      .grid-row {
+        display: flex;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .grid-row:hover .row-num {
+        background: var(--surface2);
+      }
+
+      .row-num {
+        width: 52px;
+        min-width: 52px;
+        height: var(--cell-h);
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent);
+        cursor: pointer;
+        transition: background 0.1s;
+        position: sticky;
+        left: 0;
+      }
+
+      .row-num.selected {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .grid-cell {
+        width: var(--cell-w);
+        min-width: var(--cell-w);
+        height: var(--cell-h);
+        border-right: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        cursor: text;
+        transition: background 0.1s;
+      }
+
+      .grid-cell:hover {
+        background: rgba(194, 125, 0, 0.08);
+      }
+      .grid-cell.beat-start {
+        border-left: 2px solid rgba(194, 125, 0, 0.35);
+      }
+
+      .grid-cell input {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 600;
+        text-align: center;
+        font-family: "Courier New", monospace;
+        letter-spacing: 1px;
+        cursor: text;
+        padding: 0 2px;
+      }
+
+      .grid-cell input:focus {
+        background: rgba(45, 106, 159, 0.12);
+      }
+
+      .grid-cell.has-value {
+        background: rgba(22, 163, 74, 0.07);
+      }
+      .grid-cell.has-value input {
+        color: #166534;
+      }
+
+      /* ══════════════ MODAL ══════════════ */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-overlay.show {
+        display: flex;
+      }
+
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 28px;
+        width: 360px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      }
+
+      .modal h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 20px;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+
+      .modal .field {
+        margin-bottom: 16px;
+      }
+
+      .modal label {
+        display: block;
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-bottom: 6px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .modal input,
+      .modal select {
+        width: 100%;
+        padding: 9px 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+        direction: ltr;
+        text-align: center;
+      }
+
+      .modal input:focus,
+      .modal select:focus {
+        border-color: var(--accent);
+      }
+
+      .modal .modal-btns {
+        display: flex;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .modal .modal-btns .btn {
+        flex: 1;
+        padding: 10px;
+        font-size: 13px;
+      }
+
+      /* ══════════════ STATUS BAR ══════════════ */
+      #statusbar {
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 4px 16px;
+        font-size: 11px;
+        color: var(--text-dim);
+        display: flex;
+        gap: 20px;
+        flex-shrink: 0;
+        direction: rtl;
+      }
+
+      #statusbar span {
+        color: var(--text);
+      }
+
+      /* ══════════════ TOAST ══════════════ */
+      #toast {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--green);
+        color: #000;
+        font-weight: 700;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 13px;
+        opacity: 0;
+        transition: all 0.3s;
+        z-index: 200;
+        pointer-events: none;
+      }
+
+      #toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      #toast.error {
+        background: var(--red);
+        color: white;
+      }
+
+      /* scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+      }
+
+      /* ══════════════ MOBILE RESPONSIVE ══════════════ */
+      @media (max-width: 700px) {
+        body {
+          height: 100dvh;
+          overflow: hidden;
+        }
+
+        /* ── Topbar: compact, wrap ── */
+        #topbar {
+          padding: 6px 10px;
+          gap: 8px;
+          flex-wrap: wrap;
+          overflow-x: auto;
+        }
+        #topbar .logo {
+          font-size: 13px;
+        }
+        #topbar .info-label {
+          font-size: 8px;
+        }
+        #topbar .info-value {
+          font-size: 12px;
+        }
+        #topbar .separator {
+          display: none;
+        }
+        .tempo-group {
+          min-width: 120px;
+        }
+        #tempo-slider {
+          width: 70px;
+        }
+
+        /* ── Main: vertical stack ── */
+        #main {
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        /* ── File toolbar: horizontal row at TOP ── */
+        #right-panel {
+          width: 100%;
+          border-left: none;
+          border-bottom: 1px solid var(--border);
+          flex-direction: row;
+          align-items: center;
+          padding: 6px 8px;
+          gap: 6px;
+          order: 1;
+          overflow-x: auto;
+          flex-shrink: 0;
+        }
+        #right-panel .panel-title {
+          display: none;
+        }
+        #right-panel .btn {
+          padding: 6px 10px;
+          font-size: 11px;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        /* ── Grid area: scrollable ── */
+        #grid-area {
+          flex: 1;
+          order: 2;
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        #grid-wrapper {
+          min-width: max-content;
+        }
+
+        /* ── Edit toolbar: horizontal row at BOTTOM ── */
+        #left-panel {
+          width: 100%;
+          border-right: none;
+          border-top: 1px solid var(--border);
+          flex-direction: row;
+          align-items: center;
+          padding: 6px 8px;
+          gap: 4px;
+          order: 3;
+          overflow-x: auto;
+          flex-shrink: 0;
+        }
+        #left-panel .panel-title {
+          display: none;
+        }
+        #left-panel .btn-divider {
+          width: 1px;
+          height: 22px;
+          margin: 0 2px;
+        }
+        #left-panel .btn {
+          padding: 6px 8px;
+          font-size: 11px;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        #left-panel .btn.selected-indicator {
+          font-size: 10px;
+          padding: 4px 6px;
+          flex-shrink: 0;
+        }
+
+        /* ── Grid cells: slightly smaller ── */
+        :root {
+          --cell-w: 44px;
+          --cell-h: 34px;
+        }
+        .grid-cell input {
+          font-size: 11px;
+        }
+        .col-num {
+          font-size: 9px;
+          height: 22px;
+        }
+        .row-num {
+          font-size: 11px;
+          width: 36px;
+          min-width: 36px;
+        }
+        .col-header-corner {
+          width: 36px;
+          min-width: 36px;
+        }
+
+        /* ── Status bar ── */
+        #statusbar {
+          font-size: 10px;
+          padding: 3px 10px;
+        }
+      }
+
+      /* ══════════════ SOUNDS ══════════════ */
+      #sound-badge {
+        display: inline-flex;
+        align-items: center;
+        height: 30px;
+        background: #dc2626;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 0 10px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      #sound-badge.loaded {
+        background: var(--green);
+        color: #fff;
+      }
+      .btn.sound-btn {
+        background: linear-gradient(135deg, #2d6a9f, #1e4f7a);
+        border-color: #2d6a9f;
+        color: #fff;
+        font-size: 11px;
+      }
+      .btn.sound-btn:hover {
+        background: linear-gradient(135deg, #3a7fc1, #2d6a9f);
+        border-color: #3a7fc1;
+      }
+
+      @media (max-width: 700px) {
+        #sound-badge {
+          font-size: 9px;
+          padding: 2px 6px;
+        }
+      }
+
+      /* ══════════════ PLAYBACK ══════════════ */
+      #play-bar {
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 6px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        direction: ltr;
+      }
+
+      .play-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 7px 18px;
+        border-radius: 8px;
+        border: none;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+      }
+      .play-btn:active {
+        transform: scale(0.96);
+      }
+
+      #btn-play-once {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        color: #fff;
+      }
+      #btn-play-once:hover {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+      }
+      #btn-play-once.playing {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+      }
+
+      #btn-play-loop {
+        background: linear-gradient(135deg, #2d6a9f, #1e4f7a);
+        color: #fff;
+      }
+      #btn-play-loop:hover {
+        background: linear-gradient(135deg, #3a7fc1, #2d6a9f);
+      }
+      #btn-play-loop.playing {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+      }
+
+      #play-position {
+        flex: 1;
+        height: 6px;
+        background: var(--surface2);
+        border-radius: 3px;
+        overflow: hidden;
+        position: relative;
+      }
+      #play-progress {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--green), var(--accent));
+        border-radius: 3px;
+        transition: width 0.05s linear;
+      }
+
+      #play-time {
+        font-size: 11px;
+        color: var(--text-dim);
+        font-family: "Courier New", monospace;
+        min-width: 50px;
+        text-align: right;
+      }
+
+      /* highlight playing row */
+      .grid-row.playing-row .row-num {
+        background: var(--green) !important;
+        color: #fff !important;
+      }
+
+      @media (max-width: 700px) {
+        #play-bar {
+          padding: 5px 8px;
+          gap: 7px;
+        }
+        .play-btn {
+          padding: 6px 12px;
+          font-size: 12px;
+        }
+        #play-time {
+          font-size: 10px;
+          min-width: 40px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ══════════════ TOP BAR ══════════════ -->
+    <div id="topbar">
+      <div class="logo">BUSKIT</div>
+      <div class="separator"></div>
+      <div class="piece-info">
+        <div class="info-group">
+          <div class="info-label">نام قطعه</div>
+          <div class="info-value accent" id="disp-name">—</div>
+        </div>
+        <div class="separator"></div>
+        <div class="info-group">
+          <div class="info-label">عدد میزان</div>
+          <div class="info-value" id="disp-meter">—</div>
+        </div>
+        <div class="separator"></div>
+        <div class="info-group tempo-group">
+          <div class="info-label">تمپو</div>
+          <div class="tempo-slider-row">
+            <input
+              type="range"
+              id="tempo-slider"
+              min="40"
+              max="240"
+              value="120"
+              disabled
+              oninput="app.changeTempo(this.value)"
+            />
+            <span class="info-value" id="disp-tempo">—</span>
+          </div>
+        </div>
+        <div class="separator"></div>
+        <div class="info-group">
+          <div class="info-label">میزان‌ها</div>
+          <div class="info-value" id="disp-rows">—</div>
+        </div>
+        <div class="separator"></div>
+        <span id="sound-badge">دیتا موجود نیست</span>
+      </div>
+    </div>
+
+    <!-- ══════════════ MAIN ══════════════ -->
+    <div id="main">
+      <!-- RIGHT PANEL (file ops) -->
+      <div id="right-panel">
+        <div class="panel-title">فایل</div>
+        <button class="btn accent-btn" onclick="app.newFile()">New</button>
+        <button class="btn" onclick="app.openFile()">Open</button>
+        <button class="btn" onclick="app.saveFile()">Save</button>
+        <button class="btn" onclick="app.saveAs()">Save As</button>
+        <div class="btn-divider"></div>
+        <button class="btn sound-btn" onclick="app.loadSounds()">
+          🎵 Sounds
+        </button>
+      </div>
+
+      <!-- GRID AREA -->
+      <div id="grid-area">
+        <div id="grid-wrapper">
+          <div id="col-header"></div>
+          <div id="grid-body"></div>
+        </div>
+      </div>
+
+      <!-- LEFT PANEL (edit ops) -->
+      <div id="left-panel">
+        <div class="panel-title">ویرایش</div>
+        <div class="btn selected-indicator" id="sel-indicator">میزان: —</div>
+        <div class="btn-divider"></div>
+        <button class="btn" onclick="app.insertRow()">Insert</button>
+        <button class="btn danger" onclick="app.deleteRow()">Empty</button>
+        <div class="btn-divider"></div>
+        <button class="btn" onclick="app.copyRow()">Copy</button>
+        <button class="btn" onclick="app.pasteRow()">Paste</button>
+        <div class="btn-divider"></div>
+        <button class="btn danger" onclick="app.removeRow()">Remove</button>
+        <div class="btn-divider"></div>
+        <button class="btn" onclick="app.appendRow()">New Msr</button>
+      </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div id="statusbar">
+      <span id="status-msg">برای شروع، New بزنید یا یک فایل Open کنید</span>
+    </div>
+
+    <!-- PLAY BAR -->
+    <div id="play-bar">
+      <button class="play-btn" id="btn-play-once" onclick="app.playOnce()">
+        ▶ Play
+      </button>
+      <button class="play-btn" id="btn-play-loop" onclick="app.playLoop()">
+        ⟳ Loop
+      </button>
+      <div id="play-position"><div id="play-progress"></div></div>
+      <span id="play-time">0:00</span>
+      <button
+        class="play-btn"
+        id="btn-save-wav"
+        onclick="app.saveWav()"
+        style="
+          background: linear-gradient(135deg, #7c3aed, #5b21b6);
+          color: #fff;
+          margin-right: 0;
+        "
+      >
+        💾 WAV
+      </button>
+    </div>
+
+    <!-- SAVE WAV MODAL -->
+    <div class="modal-overlay" id="modal-savewav">
+      <div class="modal">
+        <h3>▸ ذخیره فایل WAV</h3>
+        <div class="field">
+          <label>نام فایل (بدون پسوند)</label>
+          <input
+            type="text"
+            id="inp-wavname"
+            dir="ltr"
+            placeholder="my-rhythm"
+          />
+        </div>
+        <div class="modal-btns">
+          <button
+            class="btn"
+            onclick="
+              document.getElementById('modal-savewav').classList.remove('show')
+            "
+          >
+            انصراف
+          </button>
+          <button class="btn accent-btn" onclick="app.confirmSaveWav()">
+            دانلود WAV
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <!-- ══════════════ NEW FILE MODAL ══════════════ -->
+    <div class="modal-overlay" id="modal-new">
+      <div class="modal">
+        <h3>▸ قطعه جدید</h3>
+        <div class="field">
+          <label>نام قطعه</label>
+          <input
+            type="text"
+            id="inp-name"
+            placeholder="مثال: Chaharmezrab Shur"
+            dir="auto"
+          />
+        </div>
+        <div class="field">
+          <label>تمپو (BPM)</label>
+          <input type="number" id="inp-tempo" value="120" min="20" max="400" />
+        </div>
+        <div class="field">
+          <label>عدد میزان</label>
+          <select id="inp-meter">
+            <option value="2/4">2/4</option>
+            <option value="3/4">3/4</option>
+            <option value="4/4" selected>4/4</option>
+            <option value="5/4">5/4</option>
+            <option value="6/4">6/4</option>
+            <option value="6/8">6/8</option>
+            <option value="7/8">7/8</option>
+            <option value="9/8">9/8</option>
+            <option value="12/8">12/8</option>
+            <option value="5/8">5/8</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>تعداد میزان‌های اولیه</label>
+          <input type="number" id="inp-initrows" value="16" min="1" max="200" />
+        </div>
+        <div class="modal-btns">
+          <button class="btn" onclick="app.cancelNew()">انصراف</button>
+          <button class="btn accent-btn" onclick="app.confirmNew()">
+            ایجاد
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVE AS MODAL -->
+    <div class="modal-overlay" id="modal-saveas">
+      <div class="modal">
+        <h3>▸ ذخیره با نام</h3>
+        <div class="field">
+          <label>نام فایل</label>
+          <input type="text" id="inp-savename" dir="ltr" />
+        </div>
+        <div class="modal-btns">
+          <button
+            class="btn"
+            onclick="
+              document.getElementById('modal-saveas').classList.remove('show')
+            "
+          >
+            انصراف
+          </button>
+          <button class="btn accent-btn" onclick="app.confirmSaveAs()">
+            ذخیره
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const app = (() => {
+        // ══════════════════════════════════════
+        // STATE
+        // ══════════════════════════════════════
+        let state = {
+          name: "",
+          meter: "4/4",
+          tempo: 120,
+          cols: 8, // = numerator * 2
+          rows: [], // array of arrays [cols]
+          selected: -1, // selected row index (0-based)
+          clipboard: null,
+          filename: "",
+          dirty: false,
+        };
+
+        // ══════════════════════════════════════
+        // SOUNDS
+        // ══════════════════════════════════════
+        const sounds = {}; // { filename: AudioBuffer }
+
+        function updateSoundBadge() {
+          const badge = document.getElementById("sound-badge");
+          const count = Object.keys(sounds).length;
+          if (count === 0) {
+            badge.textContent = "دیتا موجود نیست";
+            badge.classList.remove("loaded");
+          } else {
+            badge.textContent = count + " صدا لود شد";
+            badge.classList.add("loaded");
+          }
+        }
+
+        async function loadSounds() {
+          const isMobile = /Mobi|Android|iPhone|iPad/i.test(
+            navigator.userAgent,
+          );
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = "audio/wav,.wav";
+          input.multiple = true;
+          if (!isMobile && "webkitdirectory" in input) {
+            input.webkitdirectory = true;
+          }
+
+          input.onchange = async (e) => {
+            const files = Array.from(e.target.files).filter((f) =>
+              f.name.toLowerCase().endsWith(".wav"),
+            );
+
+            if (files.length === 0) {
+              toast("هیچ فایل WAV پیدا نشد", true);
+              return;
+            }
+
+            toast("در حال لود " + files.length + " فایل...");
+            const ctx = getAudioCtx();
+            let loaded = 0;
+
+            for (const file of files) {
+              try {
+                const arrayBuffer = await file.arrayBuffer();
+                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                sounds[file.name] = audioBuffer;
+                loaded++;
+              } catch (err) {
+                console.warn("خطا در لود " + file.name, err);
+              }
+            }
+
+            updateSoundBadge();
+            toast(loaded + " فایل WAV با موفقیت لود شد ✓");
+          };
+
+          input.click();
+        }
+
+        // ══════════════════════════════════════
+        // METER → COLS
+        // ══════════════════════════════════════
+        function meterToCols(meter) {
+          const parts = meter.split("/");
+          const num = parseInt(parts[0]);
+          const den = parseInt(parts[1]);
+          if (den === 2) return num * 8;
+          if (den === 4) return num * 4;
+          if (den === 8 || den === 16) return num * 2;
+          return num * 2; // fallback
+        }
+
+        // ══════════════════════════════════════
+        // RENDER
+        // ══════════════════════════════════════
+        function render() {
+          const { name, meter, tempo, cols, rows, selected } = state;
+
+          // topbar
+          document.getElementById("disp-name").textContent = name || "—";
+          document.getElementById("disp-meter").textContent = meter || "—";
+          document.getElementById("disp-tempo").textContent = tempo
+            ? tempo + " BPM"
+            : "—";
+          const slider = document.getElementById("tempo-slider");
+          if (tempo) {
+            slider.value = tempo;
+            slider.disabled = false;
+            const pct = (((tempo - 40) / (240 - 40)) * 100).toFixed(1) + "%";
+            slider.style.setProperty("--val", pct);
+          } else {
+            slider.disabled = true;
+          }
+          document.getElementById("disp-rows").textContent = rows.length || "—";
+
+          // selected indicator
+          document.getElementById("sel-indicator").textContent =
+            selected >= 0 ? `میزان: ${selected + 1}` : "میزان: —";
+
+          // col header
+          const header = document.getElementById("col-header");
+          header.innerHTML = "";
+          const corner = document.createElement("div");
+          corner.className = "col-header-corner";
+          header.appendChild(corner);
+
+          // beat grouping: every 2 cols = one eighth note (or based on denominator)
+          const den = parseInt(meter.split("/")[1] || 4);
+          // cols per beat
+          const colsPerBeat = den <= 4 ? 4 : den <= 8 ? 2 : 1;
+
+          for (let c = 0; c < cols; c++) {
+            const d = document.createElement("div");
+            d.className =
+              "col-num" + (c % colsPerBeat === 0 ? " beat-start" : "");
+            d.textContent = c + 1;
+            header.appendChild(d);
+          }
+
+          // grid body
+          const body = document.getElementById("grid-body");
+          body.innerHTML = "";
+
+          rows.forEach((row, ri) => {
+            const rowEl = document.createElement("div");
+            rowEl.className = "grid-row";
+
+            // row number (sticky right)
+            const numEl = document.createElement("div");
+            numEl.className = "row-num" + (ri === selected ? " selected" : "");
+            numEl.textContent = ri + 1;
+            numEl.addEventListener("click", () => selectRow(ri));
+            rowEl.appendChild(numEl);
+
+            // cells
+            for (let ci = 0; ci < cols; ci++) {
+              const cell = document.createElement("div");
+              const val = row[ci] || "";
+              cell.className =
+                "grid-cell" +
+                (ci % colsPerBeat === 0 ? " beat-start" : "") +
+                (val ? " has-value" : "");
+
+              const inp = document.createElement("input");
+              inp.type = "text";
+              inp.maxLength = 6;
+              inp.value = val;
+              inp.dataset.row = ri;
+              inp.dataset.col = ci;
+
+              inp.addEventListener("focus", () => selectRow(ri));
+              inp.addEventListener("input", (e) => {
+                if (playState && playState.playing) stopPlayback();
+                const v = e.target.value.slice(0, 6);
+                e.target.value = v;
+                state.rows[ri][ci] = v;
+                cell.classList.toggle("has-value", !!v);
+                state.dirty = true;
+                updateStatus();
+              });
+
+              // keyboard nav
+              inp.addEventListener("keydown", (e) => {
+                const r = parseInt(e.target.dataset.row);
+                const c = parseInt(e.target.dataset.col);
+                if (e.key === "ArrowLeft") {
+                  e.preventDefault();
+                  focusCell(r, c - 1);
+                } else if (e.key === "ArrowRight") {
+                  e.preventDefault();
+                  focusCell(r, c + 1);
+                } else if (e.key === "ArrowDown" || e.key === "Enter") {
+                  e.preventDefault();
+                  focusCell(r + 1, c);
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  focusCell(r - 1, c);
+                } else if (e.key === "Tab") {
+                  e.preventDefault();
+                  if (e.shiftKey) focusCell(r, c - 1);
+                  else {
+                    if (c + 1 >= cols) focusCell(r + 1, 0);
+                    else focusCell(r, c + 1);
+                  }
+                }
+              });
+
+              cell.appendChild(inp);
+              rowEl.appendChild(cell);
+            }
+
+            body.appendChild(rowEl);
+          });
+
+          updateStatus();
+        }
+
+        function focusCell(r, c) {
+          if (r < 0) r = 0;
+          if (r >= state.rows.length) r = state.rows.length - 1;
+          if (c < 0) c = 0;
+          if (c >= state.cols) c = state.cols - 1;
+          const inp = document.querySelector(
+            `input[data-row="${r}"][data-col="${c}"]`,
+          );
+          if (inp) {
+            inp.focus();
+            inp.select();
+          }
+        }
+
+        function selectRow(ri) {
+          state.selected = ri;
+          // update row highlights
+          document.querySelectorAll(".row-num").forEach((el, i) => {
+            el.classList.toggle("selected", i === ri);
+          });
+          document.getElementById("sel-indicator").textContent =
+            `میزان: ${ri + 1}`;
+        }
+
+        function updateStatus() {
+          const filled = state.rows.reduce(
+            (acc, row) => acc + row.filter((v) => v).length,
+            0,
+          );
+          const total = state.rows.length * state.cols;
+          document.getElementById("status-msg").textContent =
+            `${state.rows.length} میزان  |  ${state.cols} ستون  |  ${filled} خانه پر از ${total}` +
+            (state.dirty ? "  •  ذخیره نشده" : "  ✓  ذخیره شده");
+        }
+
+        // ══════════════════════════════════════
+        // NEW FILE
+        // ══════════════════════════════════════
+        function newFile() {
+          const now = new Date();
+          const dateStr = now.toISOString().slice(0, 10);
+          document.getElementById("inp-name").value = "";
+          document.getElementById("inp-tempo").value = 120;
+          document.getElementById("inp-meter").value = "4/4";
+          document.getElementById("inp-initrows").value = 16;
+          document.getElementById("inp-savename") &&
+            (document.getElementById("inp-savename").value =
+              `Untitled_${dateStr}`);
+          document.getElementById("modal-new").classList.add("show");
+          setTimeout(() => document.getElementById("inp-name").focus(), 100);
+        }
+
+        function cancelNew() {
+          document.getElementById("modal-new").classList.remove("show");
+        }
+
+        function confirmNew() {
+          const name =
+            document.getElementById("inp-name").value.trim() || "Untitled";
+          const tempo =
+            parseInt(document.getElementById("inp-tempo").value) || 120;
+          const meter = document.getElementById("inp-meter").value;
+          const initRows = Math.max(
+            1,
+            parseInt(document.getElementById("inp-initrows").value) || 16,
+          );
+          const cols = meterToCols(meter);
+
+          const now = new Date();
+          const dateStr = now.toISOString().slice(0, 10);
+
+          state = {
+            name,
+            meter,
+            tempo,
+            cols,
+            rows: Array.from({ length: initRows }, () => Array(cols).fill("")),
+            selected: -1,
+            clipboard: null,
+            filename: `${name}_${dateStr}`,
+            dirty: false,
+          };
+
+          document.getElementById("modal-new").classList.remove("show");
+          render();
+          toast(`قطعه "${name}" ایجاد شد`);
+        }
+
+        // ══════════════════════════════════════
+        // ROW OPERATIONS
+        // ══════════════════════════════════════
+        function insertRow() {
+          if (state.rows.length === 0)
+            return toast("ابتدا یک قطعه ایجاد کنید", true);
+          const idx = state.selected >= 0 ? state.selected : state.rows.length;
+          state.rows.splice(idx, 0, Array(state.cols).fill(""));
+          state.dirty = true;
+          render();
+          selectRow(idx);
+          toast(`میزان ${idx + 1} اضافه شد`);
+        }
+
+        function appendRow() {
+          if (state.rows.length === 0)
+            return toast("ابتدا یک قطعه ایجاد کنید", true);
+          state.rows.push(Array(state.cols).fill(""));
+          state.dirty = true;
+          render();
+          const newIdx = state.rows.length - 1;
+          selectRow(newIdx);
+          // scroll to bottom
+          const gridArea = document.getElementById("grid-area");
+          if (gridArea) gridArea.scrollTop = gridArea.scrollHeight;
+          toast("میزان " + (newIdx + 1) + " به انتها اضافه شد");
+        }
+
+        function deleteRow() {
+          if (state.selected < 0)
+            return toast("ابتدا یک میزان انتخاب کنید", true);
+          state.rows[state.selected] = Array(state.cols).fill("");
+          state.dirty = true;
+          render();
+          selectRow(state.selected);
+          toast(`محتوای میزان ${state.selected + 1} پاک شد`);
+        }
+
+        function copyRow() {
+          if (state.selected < 0)
+            return toast("ابتدا یک میزان انتخاب کنید", true);
+          state.clipboard = [...state.rows[state.selected]];
+          toast(`میزان ${state.selected + 1} کپی شد`);
+        }
+
+        function pasteRow() {
+          if (!state.clipboard) return toast("چیزی در حافظه نیست", true);
+          if (state.selected < 0)
+            return toast("ابتدا یک میزان انتخاب کنید", true);
+          const idx = state.selected + 1;
+          // adjust clipboard length to current cols
+          const adjusted = Array(state.cols)
+            .fill("")
+            .map((_, i) => state.clipboard[i] || "");
+          state.rows.splice(idx, 0, adjusted);
+          state.dirty = true;
+          render();
+          selectRow(idx);
+          toast(`میزان paste شد در جایگاه ${idx + 1}`);
+        }
+
+        function removeRow() {
+          if (state.selected < 0)
+            return toast("ابتدا یک میزان انتخاب کنید", true);
+          if (state.rows.length <= 1)
+            return toast("حداقل یک میزان باید وجود داشته باشد", true);
+          const idx = state.selected;
+          state.rows.splice(idx, 1);
+          state.dirty = true;
+          if (state.selected >= state.rows.length)
+            state.selected = state.rows.length - 1;
+          render();
+          toast(`میزان ${idx + 1} حذف و بقیه جابجا شدند`);
+        }
+
+        // ══════════════════════════════════════
+        // FILE OPS — TXT FORMAT
+        // ══════════════════════════════════════
+
+        // Format:
+        // BUSKIT_RHYTHM_FILE
+        // name|meter|tempo|cols
+        // row data: cell1,cell2,...
+        // ...
+
+        function serialize() {
+          const header = `BUSKIT_RHYTHM_FILE\n${state.name}|${state.meter}|${state.tempo}|${state.cols}\n`;
+          const body = state.rows.map((row) => row.join(",")).join("\n");
+          return header + body;
+        }
+
+        function deserialize(text) {
+          const lines = text.split("\n");
+          if (lines[0].trim() !== "BUSKIT_RHYTHM_FILE")
+            throw new Error("فرمت فایل نادرست");
+          const [name, meter, tempo, cols] = lines[1].split("|");
+          const colsNum = parseInt(cols);
+          const rows = lines
+            .slice(2)
+            .filter((l) => l.trim())
+            .map((l) => {
+              const cells = l.split(",");
+              // ensure length matches
+              return Array(colsNum)
+                .fill("")
+                .map((_, i) => cells[i] || "");
+            });
+          return { name, meter, tempo: parseInt(tempo), cols: colsNum, rows };
+        }
+
+        function saveFile() {
+          if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+          const txt = serialize();
+          const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = (state.filename || state.name) + ".txt";
+          a.click();
+          URL.revokeObjectURL(a.href);
+          state.dirty = false;
+          updateStatus();
+          toast("فایل ذخیره شد ✓");
+        }
+
+        function saveAs() {
+          if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+          document.getElementById("inp-savename").value =
+            state.filename || state.name;
+          document.getElementById("modal-saveas").classList.add("show");
+        }
+
+        function confirmSaveAs() {
+          const fname = document.getElementById("inp-savename").value.trim();
+          if (!fname) return;
+          state.filename = fname;
+          document.getElementById("modal-saveas").classList.remove("show");
+          saveFile();
+        }
+
+        function openFile() {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".txt";
+          input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              try {
+                const parsed = deserialize(ev.target.result);
+                state = {
+                  ...parsed,
+                  selected: -1,
+                  clipboard: null,
+                  filename: file.name.replace(".txt", ""),
+                  dirty: false,
+                };
+                render();
+                toast(`"${state.name}" باز شد`);
+              } catch (err) {
+                toast("خطا در باز کردن فایل: " + err.message, true);
+              }
+            };
+            reader.readAsText(file);
+          };
+          input.click();
+        }
+
+        // ══════════════════════════════════════
+        // TOAST
+        // ══════════════════════════════════════
+        let toastTimer;
+        function toast(msg, isError = false) {
+          const el = document.getElementById("toast");
+          el.textContent = msg;
+          el.className = "show" + (isError ? " error" : "");
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => {
+            el.className = "";
+          }, 2500);
+        }
+
+        // ══════════════════════════════════════
+        // KEYBOARD SHORTCUTS
+        // ══════════════════════════════════════
+        document.addEventListener("keydown", (e) => {
+          if (e.ctrlKey || e.metaKey) {
+            if (e.key === "s") {
+              e.preventDefault();
+              saveFile();
+            } else if (e.key === "n") {
+              e.preventDefault();
+              newFile();
+            } else if (e.key === "o") {
+              e.preventDefault();
+              openFile();
+            } else if (
+              e.key === "c" &&
+              document.activeElement.tagName !== "INPUT"
+            ) {
+              e.preventDefault();
+              copyRow();
+            } else if (
+              e.key === "v" &&
+              document.activeElement.tagName !== "INPUT"
+            ) {
+              e.preventDefault();
+              pasteRow();
+            }
+          }
+        });
+
+        // ══════════════════════════════════════
+        // INIT — show empty state
+        // ══════════════════════════════════════
+        render();
+
+        function changeTempo(val) {
+          if (!state.name) return;
+          val = parseInt(val);
+          state.tempo = val;
+          state.dirty = true;
+          document.getElementById("disp-tempo").textContent = val + " BPM";
+          const pct = (((val - 40) / (240 - 40)) * 100).toFixed(1) + "%";
+          document
+            .getElementById("tempo-slider")
+            .style.setProperty("--val", pct);
+          updateStatus();
+        }
+
+        // ══════════════════════════════════════
+        // AUDIO ENGINE
+        // ══════════════════════════════════════
+        let audioCtx = null;
+        let playState = {
+          playing: false,
+          loop: false,
+          startTime: 0, // audioCtx.currentTime when playback started
+          totalDur: 0, // total duration in seconds
+          rafId: null, // requestAnimationFrame id
+          scheduledNodes: [], // all BufferSourceNodes so we can stop them
+        };
+
+        function getAudioCtx() {
+          if (!audioCtx)
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          return audioCtx;
+        }
+
+        // resolve "D" → sounds["D.wav"] or sounds["D.WAV"] etc.
+        function resolveSound(symbol) {
+          if (!symbol || symbol === "-") return null;
+          const keys = Object.keys(sounds);
+          // exact match with .wav
+          const exact = keys.find(
+            (k) => k.toLowerCase() === symbol.toLowerCase() + ".wav",
+          );
+          if (exact) return sounds[exact];
+          // fallback: starts with symbol (case-insensitive)
+          const partial = keys.find((k) =>
+            k.toLowerCase().startsWith(symbol.toLowerCase() + "."),
+          );
+          if (partial) return sounds[partial];
+          return null;
+        }
+
+        // build a flat list of {symbol, startSec, durationSec} events from current state
+        function buildTimeline() {
+          const { rows, cols, tempo, meter } = state;
+          const den = parseInt(meter.split("/")[1] || 4);
+          // duration of one cell in seconds
+          // each cell = one subdivision: for /4 meter, 4 subdivisions per beat → cell = (60/tempo)/4
+          const subdivsPerBeat = den <= 4 ? 4 : 2;
+          const cellDur = 60 / tempo / subdivsPerBeat;
+
+          const events = [];
+          let t = 0;
+
+          for (let ri = 0; ri < rows.length; ri++) {
+            const row = rows[ri];
+            let ci = 0;
+            while (ci < cols) {
+              const sym = row[ci] ? row[ci].trim() : "";
+              if (!sym || sym === "-") {
+                ci++;
+                t += cellDur;
+                continue;
+              }
+              // count duration: sym + following '-' cells
+              let dur = cellDur;
+              let next = ci + 1;
+              while (next < cols && row[next] && row[next].trim() === "-") {
+                dur += cellDur;
+                next++;
+              }
+              events.push({
+                symbol: sym,
+                row: ri,
+                startSec: t,
+                durationSec: dur,
+              });
+              t += dur;
+              ci = next;
+            }
+            // if row ended early (next was out of bounds), advance t to end of row
+            // t is already correct from the loop
+          }
+
+          return { events, totalDur: t };
+        }
+
+        function schedulePlayback(loop) {
+          const ctx = getAudioCtx();
+          const { events, totalDur } = buildTimeline();
+          if (totalDur === 0) {
+            toast("گریدی وجود ندارد", true);
+            return;
+          }
+
+          playState.playing = true;
+          playState.loop = loop;
+          playState.startTime = ctx.currentTime;
+          playState.totalDur = totalDur;
+          playState.scheduledNodes = [];
+
+          function scheduleOnce(offset) {
+            events.forEach((ev) => {
+              const buf = resolveSound(ev.symbol);
+              if (!buf) return;
+
+              const src = ctx.createBufferSource();
+              const gainNode = ctx.createGain();
+
+              // trim buffer if needed (for tremolo / long sounds)
+              let playDur = ev.durationSec;
+              const bufDur = buf.duration;
+
+              if (bufDur > playDur) {
+                // fade out at end
+                const fadeTime = Math.min(0.08, playDur * 0.2);
+                gainNode.gain.setValueAtTime(1, offset + ev.startSec);
+                gainNode.gain.linearRampToValueAtTime(
+                  0,
+                  offset + ev.startSec + playDur,
+                );
+                src.buffer = buf;
+                src.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                src.start(offset + ev.startSec);
+                src.stop(offset + ev.startSec + playDur + 0.01);
+              } else {
+                // short sound: play fully with tiny fade out
+                gainNode.gain.setValueAtTime(1, offset + ev.startSec);
+                gainNode.gain.linearRampToValueAtTime(
+                  0.001,
+                  offset + ev.startSec + bufDur,
+                );
+                src.buffer = buf;
+                src.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                src.start(offset + ev.startSec);
+              }
+
+              playState.scheduledNodes.push(src);
+            });
+          }
+
+          scheduleOnce(ctx.currentTime);
+
+          // if loop, schedule next repetition slightly before end
+          if (loop) {
+            function scheduleLoop() {
+              if (!playState.playing || !playState.loop) return;
+              const elapsed = ctx.currentTime - playState.startTime;
+              const loopsCompleted = Math.floor(elapsed / totalDur);
+              const nextStart =
+                playState.startTime + (loopsCompleted + 1) * totalDur;
+              // schedule 0.3s ahead
+              if (nextStart - ctx.currentTime < 0.5) {
+                scheduleOnce(nextStart);
+              }
+              setTimeout(scheduleLoop, 150);
+            }
+            setTimeout(scheduleLoop, Math.max(0, (totalDur - 0.5) * 1000));
+          } else {
+            // auto stop after totalDur
+            setTimeout(() => stopPlayback(), totalDur * 1000 + 100);
+          }
+
+          startProgressUI(totalDur, loop);
+          updatePlayButtons();
+        }
+
+        function stopPlayback() {
+          playState.playing = false;
+          playState.loop = false;
+          playState.scheduledNodes.forEach((n) => {
+            try {
+              n.stop();
+            } catch (e) {}
+          });
+          playState.scheduledNodes = [];
+          cancelAnimationFrame(playState.rafId);
+          document.getElementById("play-progress").style.width = "0%";
+          document.getElementById("play-time").textContent = "0:00";
+          document
+            .querySelectorAll(".grid-row.playing-row")
+            .forEach((r) => r.classList.remove("playing-row"));
+          updatePlayButtons();
+        }
+
+        function startProgressUI(totalDur, loop) {
+          const startTime = audioCtx.currentTime;
+
+          function tick() {
+            if (!playState.playing) return;
+            const elapsed = audioCtx.currentTime - startTime;
+            const pos = loop ? elapsed % totalDur : Math.min(elapsed, totalDur);
+            const pct = (pos / totalDur) * 100;
+            document.getElementById("play-progress").style.width = pct + "%";
+
+            // time display
+            const secs = Math.floor(pos);
+            const ms = Math.floor((pos - secs) * 10);
+            document.getElementById("play-time").textContent =
+              Math.floor(secs / 60) +
+              ":" +
+              String(secs % 60).padStart(2, "0") +
+              "." +
+              ms;
+
+            // highlight current row
+            const { rows, cols, tempo, meter } = state;
+            const den = parseInt(meter.split("/")[1] || 4);
+            const subdivsPerBeat = den <= 4 ? 4 : 2;
+            const cellDur = 60 / tempo / subdivsPerBeat;
+            const rowDur = cols * cellDur;
+            const currentRow = Math.floor(pos / rowDur);
+            document.querySelectorAll(".grid-row").forEach((el, i) => {
+              el.classList.toggle("playing-row", i === currentRow);
+            });
+
+            playState.rafId = requestAnimationFrame(tick);
+          }
+          playState.rafId = requestAnimationFrame(tick);
+        }
+
+        function updatePlayButtons() {
+          const once = document.getElementById("btn-play-once");
+          const loop = document.getElementById("btn-play-loop");
+          if (playState.playing && !playState.loop) {
+            once.textContent = "⏸ Pause";
+            once.classList.add("playing");
+          } else {
+            once.textContent = "▶ Play";
+            once.classList.remove("playing");
+          }
+          if (playState.playing && playState.loop) {
+            loop.textContent = "⏸ Loop";
+            loop.classList.add("playing");
+          } else {
+            loop.textContent = "⟳ Loop";
+            loop.classList.remove("playing");
+          }
+        }
+
+        function playOnce() {
+          if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+          if (playState.playing) {
+            stopPlayback();
+            return;
+          }
+          schedulePlayback(false);
+        }
+
+        function playLoop() {
+          if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+          if (playState.playing) {
+            stopPlayback();
+            return;
+          }
+          schedulePlayback(true);
+        }
+
+        // ══════════════════════════════════════
+        // SAVE WAV
+        // ══════════════════════════════════════
+        function saveWav() {
+          if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+          if (Object.keys(sounds).length === 0)
+            return toast("ابتدا فایل‌های WAV را لود کنید", true);
+          const defaultName = (
+            state.filename ||
+            state.name ||
+            "rhythm"
+          ).replace(/[^a-zA-Z0-9_-]/g, "_");
+          document.getElementById("inp-wavname").value = defaultName;
+          document.getElementById("modal-savewav").classList.add("show");
+          setTimeout(() => document.getElementById("inp-wavname").focus(), 100);
+        }
+
+        async function confirmSaveWav() {
+          const fname =
+            document.getElementById("inp-wavname").value.trim() || "rhythm";
+          document.getElementById("modal-savewav").classList.remove("show");
+          toast("در حال رندر WAV...");
+
+          try {
+            const { events, totalDur } = buildTimeline();
+            if (totalDur === 0) return toast("گریدی وجود ندارد", true);
+
+            const ctx = getAudioCtx();
+            const sampleRate = ctx.sampleRate;
+            const totalSamples = Math.ceil(totalDur * sampleRate) + sampleRate; // +1s tail
+            const offline = new OfflineAudioContext(
+              2,
+              totalSamples,
+              sampleRate,
+            );
+
+            for (const ev of events) {
+              const buf = resolveSound(ev.symbol);
+              if (!buf) continue;
+
+              const src = offline.createBufferSource();
+              const gainNode = offline.createGain();
+              src.buffer = buf;
+
+              const playDur = ev.durationSec;
+              const bufDur = buf.duration;
+
+              if (bufDur > playDur) {
+                gainNode.gain.setValueAtTime(1, ev.startSec);
+                gainNode.gain.linearRampToValueAtTime(0, ev.startSec + playDur);
+                src.connect(gainNode);
+                gainNode.connect(offline.destination);
+                src.start(ev.startSec);
+                src.stop(ev.startSec + playDur + 0.01);
+              } else {
+                gainNode.gain.setValueAtTime(1, ev.startSec);
+                gainNode.gain.linearRampToValueAtTime(
+                  0.001,
+                  ev.startSec + bufDur,
+                );
+                src.connect(gainNode);
+                gainNode.connect(offline.destination);
+                src.start(ev.startSec);
+              }
+            }
+
+            const renderedBuffer = await offline.startRendering();
+            const wavBlob = audioBufferToWav(renderedBuffer);
+            const url = URL.createObjectURL(wavBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fname + ".wav";
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            toast("فایل " + fname + ".wav دانلود شد ✓");
+          } catch (err) {
+            toast("خطا در رندر: " + err.message, true);
+            console.error(err);
+          }
+        }
+
+        // Convert AudioBuffer to WAV Blob
+        function audioBufferToWav(buffer) {
+          const numChannels = buffer.numberOfChannels;
+          const sampleRate = buffer.sampleRate;
+          const numSamples = buffer.length;
+          const bytesPerSample = 2;
+          const blockAlign = numChannels * bytesPerSample;
+          const byteRate = sampleRate * blockAlign;
+          const dataSize = numSamples * blockAlign;
+          const arrayBuffer = new ArrayBuffer(44 + dataSize);
+          const view = new DataView(arrayBuffer);
+
+          function writeStr(offset, str) {
+            for (let i = 0; i < str.length; i++)
+              view.setUint8(offset + i, str.charCodeAt(i));
+          }
+          function writeInt16(offset, val) {
+            view.setInt16(offset, val, true);
+          }
+          function writeUint32(offset, val) {
+            view.setUint32(offset, val, true);
+          }
+          function writeUint16(offset, val) {
+            view.setUint16(offset, val, true);
+          }
+
+          writeStr(0, "RIFF");
+          writeUint32(4, 36 + dataSize);
+          writeStr(8, "WAVE");
+          writeStr(12, "fmt ");
+          writeUint32(16, 16);
+          writeUint16(20, 1); // PCM
+          writeUint16(22, numChannels);
+          writeUint32(24, sampleRate);
+          writeUint32(28, byteRate);
+          writeUint16(32, blockAlign);
+          writeUint16(34, bytesPerSample * 8);
+          writeStr(36, "data");
+          writeUint32(40, dataSize);
+
+          // interleave channels
+          let offset = 44;
+          for (let i = 0; i < numSamples; i++) {
+            for (let ch = 0; ch < numChannels; ch++) {
+              const sample = buffer.getChannelData(ch)[i];
+              const clamped = Math.max(-1, Math.min(1, sample));
+              writeInt16(
+                offset,
+                clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff,
+              );
+              offset += 2;
+            }
+          }
+          return new Blob([arrayBuffer], { type: "audio/wav" });
+        }
+
+        document
+          .getElementById("tempo-slider")
+          .addEventListener("input", function () {
+            changeTempo(this.value);
+          });
+        return {
+          newFile,
+          cancelNew,
+          confirmNew,
+          openFile,
+          saveFile,
+          saveAs,
+          confirmSaveAs,
+          insertRow,
+          deleteRow,
+          appendRow,
+          copyRow,
+          pasteRow,
+          removeRow,
+          changeTempo,
+          loadSounds,
+          playOnce,
+          playLoop,
+          saveWav,
+          confirmSaveWav,
+        };
+      })();
+    </script>
+  </body>
+</html>
