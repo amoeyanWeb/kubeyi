@@ -446,7 +446,7 @@
           "
         >
           <script>
-            const symbols = ["(_", "d_", "t_", "o_", "1_", "2_", "3_"];
+            const symbols = [")_", "d_", "t_", "o_", "1_", "2_", "3_"];
             document.write(
               symbols
                 .map(
@@ -477,7 +477,9 @@
         <div class="modal-btns">
           <button
             class="btn"
-            onclick="document.getElementById('modal-esharah').classList.remove('show')"
+            onclick="
+              document.getElementById('modal-esharah').classList.remove('show')
+            "
             style="width: 100%"
           >
             برگشت
