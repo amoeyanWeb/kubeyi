@@ -1537,17 +1537,27 @@ const app = (() => {
   }
 
   // resolve "D" → sounds["D.wav"] or sounds["D.WAV"] etc.
+  // اگر symbol مثل "o_D" بود (اشاره)، بخش بعد از _ را جدا کرده و resolve می‌کند
   function resolveSound(symbol) {
     if (!symbol || symbol === "-") return null;
+
+    // اگر symbol شامل _ است (مثل o_D یا )_T)، بخش اصلی بعد از آخرین _ را بگیر
+    let effectiveSymbol = symbol;
+    const underscoreIdx = symbol.indexOf("_");
+    if (underscoreIdx !== -1 && underscoreIdx < symbol.length - 1) {
+      // مثال: "o_D" → "D" ، ")_T" → "T"
+      effectiveSymbol = symbol.slice(underscoreIdx + 1);
+    }
+
     const keys = Object.keys(sounds);
     // exact match with .wav
     const exact = keys.find(
-      (k) => k.toLowerCase() === symbol.toLowerCase() + ".wav",
+      (k) => k.toLowerCase() === effectiveSymbol.toLowerCase() + ".wav",
     );
     if (exact) return sounds[exact];
     // fallback: starts with symbol (case-insensitive)
     const partial = keys.find((k) =>
-      k.toLowerCase().startsWith(symbol.toLowerCase() + "."),
+      k.toLowerCase().startsWith(effectiveSymbol.toLowerCase() + "."),
     );
     if (partial) return sounds[partial];
     return null;
@@ -1651,9 +1661,19 @@ const app = (() => {
     const singleTechSec = totalEsharahSec / 2; // زمان هر زیرتکنیک اشاره (0.025)
 
     events.forEach((ev) => {
-      // بررسی اینکه آیا این تکنیک در تنظیمات اشارات تعریف شده است یا خیر
-      const esharahConfig =
-        state.esharahSettings && state.esharahSettings[ev.symbol];
+      // بررسی اینکه آیا این تکنیک اشاره دارد یا نه
+      // ev.symbol مثل "o_D" است — باید پیدا کنیم کدام کلید اشاره (مثل "o_") با این شروع می‌شود
+      let esharahConfig = null;
+      let esharahKey = null;
+      if (state.esharahSettings) {
+        for (const key of Object.keys(state.esharahSettings)) {
+          if (ev.symbol.startsWith(key)) {
+            esharahConfig = state.esharahSettings[key];
+            esharahKey = key;
+            break;
+          }
+        }
+      }
 
       if (esharahConfig) {
         // ۱. اضافه کردن تکنیک اول اشاره (زمان: زمان نت اصلی منهای کل زمان اشاره)
