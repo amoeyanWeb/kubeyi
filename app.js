@@ -413,41 +413,58 @@ const app = (() => {
           }
         } else {
           // برای slot‌های اضافی از یک کلید مصنوعی استفاده می‌کنیم
-          openTupletSlotDynMenu(ri, ci, slot, anchorEl);
+          if (
+            dynMenuState.ri === ri &&
+            dynMenuState.ci === ci &&
+            dynMenuState.tupletSlot === slot
+          ) {
+            closeDynamicsMenu();
+          } else {
+            openTupletSlotDynMenu(ri, ci, slot, anchorEl);
+          }
         }
       };
-
       inp.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         e.stopPropagation();
         openDynForSlot(inp);
       });
 
-      // long press mobile
-      let lpt = null, lpf = false;
+     // ─── اصلاح رویدادهای موبایل برای تیوپلت ───
+      let longPressTimer = null;
+      let longPressFired = false;
+
       inp.addEventListener("touchstart", (e) => {
-        lpf = false;
-        lpt = setTimeout(() => {
-          lpf = true;
+        longPressFired = false;
+        longPressTimer = setTimeout(() => {
+          if (!inp.value.trim()) return;
+          longPressFired = true;
+          e.preventDefault(); // جلوگیری از رفتارهای پیش‌فرض مرورگر در لانگ‌پرس
           openDynForSlot(inp);
         }, 500);
-      }, { passive: true });
-      inp.addEventListener("touchend", () => clearTimeout(lpt));
-      inp.addEventListener("touchmove", () => clearTimeout(lpt));
-      inp.addEventListener("click", (e) => {
-        if (lpf) { lpf = false; return; }
-        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-        if (!isMobile) return;
-        openDynForSlot(inp);
+      }, { passive: false }); // تغییر به false جهت اجازه به preventDefault
+
+      inp.addEventListener("touchend", () => {
+        clearTimeout(longPressTimer);
       });
 
-      slotDiv.appendChild(inp);
-      wrapper.appendChild(slotDiv);
-    }
+      inp.addEventListener("touchmove", () => {
+        clearTimeout(longPressTimer);
+      });
 
-    cell.appendChild(wrapper);
-    rowEl.appendChild(cell);
-  }
+      // در موبایل: تپ ساده روی خانه‌ای که متن دارد نیز منو را مدیریت کند
+      inp.addEventListener("click", (e) => {
+        if (longPressFired) {
+          longPressFired = false;
+          return;
+        }
+        const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        if (!isMobileDevice) return;
+        if (!inp.value.trim()) return;
+        
+        e.stopPropagation(); // بسیار مهم: جلوگیری از انتشار کلیک به document و بسته شدن آنی منو
+        openDynForSlot(inp);
+      });
 
   // منوی دینامیک برای slot‌های اضافی tuplet (slot >= baseCols)
   function openTupletSlotDynMenu(ri, ci, slot, anchorEl) {
