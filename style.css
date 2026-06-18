@@ -633,6 +633,10 @@ body {
   }
   #tempo-slider {
     width: 70px;
+    pointer-events: none;
+  }
+  #disp-tempo {
+    cursor: pointer;
   }
 
   /* ── Main: vertical stack ── */

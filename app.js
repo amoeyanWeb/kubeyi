@@ -80,9 +80,20 @@ const app = (() => {
     }
   }
 
-  // درست قبل از ترک/بسته‌شدن صفحه، آخرین وضعیت را تضمین می‌کنیم که نوشته شده باشد
-  window.addEventListener("beforeunload", () => {
-    if (state.dirty) persistAutosave();
+  // قبل از ترک/بسته‌شدن صفحه، آخرین وضعیت را تضمین می‌کنیم که نوشته شده باشد.
+  // beforeunload روی موبایل (سوییچ بین اپ‌ها، قفل‌کردن گوشی، بستن تب) معمولاً
+  // فایر نمی‌شود؛ به همین خاطر از visibilitychange و pagehide هم استفاده می‌کنیم
+  // که روی موبایل قابل‌اعتمادتر هستند.
+  function flushAutosaveIfDirty() {
+    if (state.dirty) {
+      clearTimeout(autosaveTimer);
+      persistAutosave();
+    }
+  }
+  window.addEventListener("beforeunload", flushAutosaveIfDirty);
+  window.addEventListener("pagehide", flushAutosaveIfDirty);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushAutosaveIfDirty();
   });
 
   // ══════════════════════════════════════
@@ -1454,6 +1465,11 @@ const app = (() => {
   // ══════════════════════════════════════
   // TEMPO MODAL — تنظیم دقیق تمپو در موبایل
   // ══════════════════════════════════════
+  // همان مرز عرضی که در style.css برای حالت موبایل استفاده شده (700px)
+  function isMobileLayout() {
+    return window.innerWidth <= 700;
+  }
+
   function openTempoModal() {
     if (!state.name) return;
     document.getElementById("inp-tempo-modal").value = state.tempo;
@@ -2149,18 +2165,12 @@ const app = (() => {
       changeTempo(this.value);
     });
 
-  // در موبایل، چون اسلایدر کوچک است و درگ‌کردن دقیق نیست،
-  // با لمس آن مودال تنظیم عددی تمپو باز می‌شود
-  document.getElementById("tempo-slider").addEventListener(
-    "touchstart",
-    function (e) {
-      const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-      if (!isMobile || this.disabled) return;
-      e.preventDefault();
-      openTempoModal();
-    },
-    { passive: false },
-  );
+  // در حالت موبایل خود اسلایدر غیرفعال است (pointer-events: none در CSS)
+  // و با لمس عدد تمپو (BPM) کنار آن، مودال تنظیم دقیق باز می‌شود
+  document.getElementById("disp-tempo").addEventListener("click", function () {
+    if (!isMobileLayout()) return;
+    openTempoModal();
+  });
 
   return {
     newFile,
