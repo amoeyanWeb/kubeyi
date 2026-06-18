@@ -19,6 +19,73 @@ const app = (() => {
   };
 
   // ══════════════════════════════════════
+  // AUTOSAVE (ذخیره خودکار در حافظه مرورگر)
+  // ══════════════════════════════════════
+  const AUTOSAVE_KEY = "buskit_rhythm_autosave_v1";
+  let autosaveTimer = null;
+
+  // فوری وضعیت فعلی را در localStorage می‌نویسد
+  function persistAutosave() {
+    try {
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error("Autosave error:", e);
+    }
+  }
+
+  // نوشتن با تاخیر کوتاه، تا تایپ پشت‌سرهم باعث نوشتن مکرر نشود
+  function scheduleAutosave() {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(persistAutosave, 600);
+  }
+
+  // جایگزین state.dirty = true → هم dirty می‌کند هم autosave را زمان‌بندی می‌کند
+  function markDirty() {
+    state.dirty = true;
+    scheduleAutosave();
+  }
+
+  function clearAutosave() {
+    try {
+      localStorage.removeItem(AUTOSAVE_KEY);
+    } catch (e) {}
+  }
+
+  // در لود اولیه صفحه: اگر نسخه ذخیره‌نشده‌ای از قبل باقی مانده، از کاربر می‌پرسد
+  function checkAutosaveOnLoad() {
+    let raw;
+    try {
+      raw = localStorage.getItem(AUTOSAVE_KEY);
+    } catch (e) {
+      return;
+    }
+    if (!raw) return;
+    let saved;
+    try {
+      saved = JSON.parse(raw);
+    } catch (e) {
+      return;
+    }
+    if (!saved || !saved.dirty || !saved.name) return;
+    const ok = window.confirm(
+      `یک نسخه‌ی ذخیره‌نشده از قطعه «${saved.name}» پیدا شد (احتمالاً قبلاً بدون ذخیره خارج شده‌اید).\nمی‌خواهید آن را بازیابی کنید؟`,
+    );
+    if (ok) {
+      state = saved;
+      render();
+      updateStatus();
+      toast(`نسخه‌ی ذخیره‌نشده‌ی «${saved.name}» بازیابی شد ✓`);
+    } else {
+      clearAutosave();
+    }
+  }
+
+  // درست قبل از ترک/بسته‌شدن صفحه، آخرین وضعیت را تضمین می‌کنیم که نوشته شده باشد
+  window.addEventListener("beforeunload", () => {
+    if (state.dirty) persistAutosave();
+  });
+
+  // ══════════════════════════════════════
   // DYNAMICS (نوانس‌ها)
   // ══════════════════════════════════════
   // ترتیب نمایش در منو طبق درخواست: ff f mf mp p pp، سپس نشانه‌های قوسی/ترمولو
@@ -142,7 +209,7 @@ const app = (() => {
   function setCellDynamic(ri, ci, key) {
     if (!state.dynamics[ri]) state.dynamics[ri] = Array(state.cols).fill("");
     state.dynamics[ri][ci] = key;
-    state.dirty = true;
+    markDirty();
     render();
     updateStatus();
   }
@@ -327,7 +394,7 @@ const app = (() => {
       if (!state.tripletData[key]) state.tripletData[key] = "";
     }
 
-    state.dirty = true;
+    markDirty();
     render();
     toast(
       `${def.desc} در میزان ${ri + 1}، تکنیک ${ci + 1}–${ci + def.baseCols} اعمال شد ✓`,
@@ -357,7 +424,7 @@ const app = (() => {
       }
     }
     delete state.triplets[ri + "-" + startCi];
-    state.dirty = true;
+    markDirty();
     render();
     toast("گروه ریتمی حذف شد");
   }
@@ -462,7 +529,7 @@ const app = (() => {
               delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
           }
         }
-        state.dirty = true;
+        markDirty();
         updateStatus();
       });
 
@@ -575,7 +642,7 @@ const app = (() => {
         e.stopPropagation();
         if (!state.tupletDynamics) state.tupletDynamics = {};
         state.tupletDynamics[`${ri}-${ci}-${slot}`] = def.key;
-        state.dirty = true;
+        markDirty();
         closeDynamicsMenu();
         render();
       });
@@ -599,7 +666,7 @@ const app = (() => {
         e.stopPropagation();
         if (!state.tupletDynamics) state.tupletDynamics = {};
         state.tupletDynamics[`${ri}-${ci}-${slot}`] = def.key;
-        state.dirty = true;
+        markDirty();
         closeDynamicsMenu();
         render();
       });
@@ -617,7 +684,7 @@ const app = (() => {
       e.stopPropagation();
       if (state.tupletDynamics)
         delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
-      state.dirty = true;
+      markDirty();
       closeDynamicsMenu();
       render();
     });
@@ -937,7 +1004,7 @@ const app = (() => {
             inp.title = "";
           }
           cell.classList.toggle("has-value", !!v);
-          state.dirty = true;
+          markDirty();
           updateStatus();
         });
 
@@ -1041,9 +1108,6 @@ const app = (() => {
     );
     const cols = meterToCols(meter);
 
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-
     state = {
       name,
       meter,
@@ -1057,12 +1121,13 @@ const app = (() => {
       selected: -1,
       clipboard: null,
       clipboardDynamics: null,
-      filename: `${name}_${dateStr}`,
+      filename: name,
       dirty: false,
     };
 
     document.getElementById("modal-new").classList.remove("show");
     render();
+    persistAutosave();
     toast(`قطعه "${name}" ایجاد شد`);
   }
 
@@ -1074,7 +1139,7 @@ const app = (() => {
     const idx = state.selected >= 0 ? state.selected : state.rows.length;
     state.rows.splice(idx, 0, Array(state.cols).fill(""));
     state.dynamics.splice(idx, 0, Array(state.cols).fill(""));
-    state.dirty = true;
+    markDirty();
     render();
     selectRow(idx);
     toast(`میزان ${idx + 1} اضافه شد`);
@@ -1084,7 +1149,7 @@ const app = (() => {
     if (state.rows.length === 0) return toast("ابتدا یک قطعه ایجاد کنید", true);
     state.rows.push(Array(state.cols).fill(""));
     state.dynamics.push(Array(state.cols).fill(""));
-    state.dirty = true;
+    markDirty();
     render();
     const newIdx = state.rows.length - 1;
     selectRow(newIdx);
@@ -1098,7 +1163,7 @@ const app = (() => {
     if (state.selected < 0) return toast("ابتدا یک میزان انتخاب کنید", true);
     state.rows[state.selected] = Array(state.cols).fill("");
     state.dynamics[state.selected] = Array(state.cols).fill("");
-    state.dirty = true;
+    markDirty();
     render();
     selectRow(state.selected);
     toast(`محتوای میزان ${state.selected + 1} پاک شد`);
@@ -1126,7 +1191,7 @@ const app = (() => {
       .map((_, i) => (state.clipboardDynamics || [])[i] || "");
     state.rows.splice(idx, 0, adjusted);
     state.dynamics.splice(idx, 0, adjustedDynamics);
-    state.dirty = true;
+    markDirty();
     render();
     selectRow(idx);
     toast(`میزان paste شد در جایگاه ${idx + 1}`);
@@ -1145,7 +1210,7 @@ const app = (() => {
       .map((_, i) => (state.clipboardDynamics || [])[i] || "");
     state.rows[idx] = adjusted;
     state.dynamics[idx] = adjustedDynamics;
-    state.dirty = true;
+    markDirty();
     render();
     selectRow(idx);
     toast(`محتوای میزان ${idx + 1} با کلیپ‌بورد جایگزین شد`);
@@ -1158,7 +1223,7 @@ const app = (() => {
     const idx = state.selected;
     state.rows.splice(idx, 1);
     state.dynamics.splice(idx, 1);
-    state.dirty = true;
+    markDirty();
     if (state.selected >= state.rows.length)
       state.selected = state.rows.length - 1;
     render();
@@ -1281,6 +1346,7 @@ const app = (() => {
     URL.revokeObjectURL(a.href);
     state.dirty = false;
     updateStatus();
+    persistAutosave();
     toast("فایل ذخیره شد ✓");
   }
 
@@ -1319,6 +1385,7 @@ const app = (() => {
             dirty: false,
           };
           render();
+          persistAutosave();
           toast(`"${state.name}" باز شد`);
         } catch (err) {
           toast("خطا در باز کردن فایل: " + err.message, true);
@@ -1371,16 +1438,41 @@ const app = (() => {
   // INIT — show empty state
   // ══════════════════════════════════════
   render();
+  checkAutosaveOnLoad();
 
   function changeTempo(val) {
     if (!state.name) return;
     val = parseInt(val);
     state.tempo = val;
-    state.dirty = true;
+    markDirty();
     document.getElementById("disp-tempo").textContent = val + " BPM";
     const pct = (((val - 40) / (240 - 40)) * 100).toFixed(1) + "%";
     document.getElementById("tempo-slider").style.setProperty("--val", pct);
     updateStatus();
+  }
+
+  // ══════════════════════════════════════
+  // TEMPO MODAL — تنظیم دقیق تمپو در موبایل
+  // ══════════════════════════════════════
+  function openTempoModal() {
+    if (!state.name) return;
+    document.getElementById("inp-tempo-modal").value = state.tempo;
+    document.getElementById("modal-tempo").classList.add("show");
+    setTimeout(() => document.getElementById("inp-tempo-modal").focus(), 100);
+  }
+
+  function cancelTempoModal() {
+    document.getElementById("modal-tempo").classList.remove("show");
+  }
+
+  function confirmTempoModal() {
+    const raw = document.getElementById("inp-tempo-modal").value;
+    let val = parseInt(raw);
+    if (isNaN(val)) return toast("مقدار تمپو نامعتبر است", true);
+    val = Math.max(40, Math.min(240, val));
+    document.getElementById("modal-tempo").classList.remove("show");
+    document.getElementById("tempo-slider").value = val;
+    changeTempo(val);
   }
 
   // ══════════════════════════════════════
@@ -2056,6 +2148,20 @@ const app = (() => {
     .addEventListener("input", function () {
       changeTempo(this.value);
     });
+
+  // در موبایل، چون اسلایدر کوچک است و درگ‌کردن دقیق نیست،
+  // با لمس آن مودال تنظیم عددی تمپو باز می‌شود
+  document.getElementById("tempo-slider").addEventListener(
+    "touchstart",
+    function (e) {
+      const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (!isMobile || this.disabled) return;
+      e.preventDefault();
+      openTempoModal();
+    },
+    { passive: false },
+  );
+
   return {
     newFile,
     cancelNew,
@@ -2072,6 +2178,9 @@ const app = (() => {
     pasteRowReplace,
     removeRow,
     changeTempo,
+    openTempoModal,
+    cancelTempoModal,
+    confirmTempoModal,
     loadSounds,
     viewSounds,
     playOnce,

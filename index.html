@@ -92,7 +92,9 @@
         <div class="btn-divider"></div>
         <button class="btn" onclick="app.appendRow()">New Msr</button>
         <div class="btn-divider"></div>
-        <button class="btn triplet-btn" onclick="app.openTripletModal()">⑇ Tuplet</button>
+        <button class="btn triplet-btn" onclick="app.openTripletModal()">
+          ⑇ Tuplet
+        </button>
       </div>
     </div>
 
@@ -296,22 +298,45 @@
     <div class="modal-overlay" id="modal-triplet">
       <div class="modal modal-tuplet">
         <h3>⑇ گروه ریتمی</h3>
-        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6">
-          چند سلول را به گروه ریتمی تبدیل می‌کند.<br>
+        <p
+          style="
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 14px;
+            line-height: 1.6;
+          "
+        >
+          چند سلول را به گروه ریتمی تبدیل می‌کند.<br />
           زمان کل گروه = تعداد سلول‌های پایه × زمان یک سلول.
         </p>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-          <div class="field" style="flex:1;min-width:90px">
+        <div
+          style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px"
+        >
+          <div class="field" style="flex: 1; min-width: 90px">
             <label>شماره میزان</label>
-            <input type="number" id="inp-tuplet-row" min="1" dir="ltr" placeholder="مثال: 3" />
+            <input
+              type="number"
+              id="inp-tuplet-row"
+              min="1"
+              dir="ltr"
+              placeholder="مثال: 3"
+            />
           </div>
-          <div class="field" style="flex:1;min-width:90px">
+          <div class="field" style="flex: 1; min-width: 90px">
             <label>شماره تکنیک (سلول اول)</label>
-            <input type="number" id="inp-tuplet-col" min="1" dir="ltr" placeholder="مثال: 5" />
+            <input
+              type="number"
+              id="inp-tuplet-col"
+              min="1"
+              dir="ltr"
+              placeholder="مثال: 5"
+            />
           </div>
         </div>
         <div class="field">
-          <label style="margin-bottom:8px;display:block">نوع گروه ریتمی</label>
+          <label style="margin-bottom: 8px; display: block"
+            >نوع گروه ریتمی</label
+          >
           <div class="tuplet-radio-grid">
             <label class="tuplet-radio-opt tuplet-opt-triplet">
               <input type="radio" name="tuplet-type" value="3:2" checked />
@@ -349,22 +374,48 @@
             <label class="tuplet-radio-opt tuplet-opt-half">
               <input type="radio" name="tuplet-type" value="2:1" />
               <span class="tuplet-radio-label">½</span>
-              <span class="tuplet-radio-desc">هالف — 2 نوت سه‌لاچنگ در فضای 1 سلول</span>
+              <span class="tuplet-radio-desc"
+                >هالف — 2 نوت سه‌لاچنگ در فضای 1 سلول</span
+              >
             </label>
             <label class="tuplet-radio-opt tuplet-opt-remove">
               <input type="radio" name="tuplet-type" value="remove" />
               <span class="tuplet-radio-label">✕</span>
-              <span class="tuplet-radio-desc">حذف تیوپلت — سلول‌ها خالی می‌شوند</span>
+              <span class="tuplet-radio-desc"
+                >حذف تیوپلت — سلول‌ها خالی می‌شوند</span
+              >
             </label>
           </div>
         </div>
-        <div class="modal-btns" style="margin-top:16px">
-          <button class="btn" onclick="document.getElementById('modal-triplet').classList.remove('show')">انصراف</button>
-          <button class="btn accent-btn" onclick="app.confirmTriplet()">اعمال</button>
+        <div class="modal-btns" style="margin-top: 16px">
+          <button
+            class="btn"
+            onclick="
+              document.getElementById('modal-triplet').classList.remove('show')
+            "
+          >
+            انصراف
+          </button>
+          <button class="btn accent-btn" onclick="app.confirmTriplet()">
+            اعمال
+          </button>
         </div>
       </div>
     </div>
 
     <script src="app.js"></script>
+    <script>
+      window.addEventListener("beforeunload", (e) => {
+        // بررسی اینکه آیا پروژه تغییرات ذخیره‌نشده دارد یا خیر
+        if (state && state.dirty) {
+          // طبق استانداردهای مدرن مرورگرها، متن سفارشی دیگر نمایش داده نمی‌شود
+          // اما مقداردهی به returnValue یا preventDefault برای فعال شدن باند هشدار الزامی است.
+          e.preventDefault();
+          e.returnValue =
+            "تغییرات شما ذخیره نشده است. آیا واقعاً قصد خروج دارید؟";
+          return e.returnValue;
+        }
+      });
+    </script>
   </body>
 </html>
