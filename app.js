@@ -166,13 +166,55 @@ const app = (() => {
   // زمان هر نوت = (baseCols * cellDur) / slots
 
   const TUPLET_TYPES = {
-    "3:2": { label: "3:2", slots: 3, baseCols: 2, color: "triplet",    desc: "تریوله (3 نوت در فضای 2)" },
-    "2:3": { label: "2:3", slots: 2, baseCols: 3, color: "duplet",     desc: "دوپله (2 نوت در فضای 3)" },
-    "6:4": { label: "6:4", slots: 6, baseCols: 4, color: "sextuplet",  desc: "سکستوله (6 نوت در فضای 4)" },
-    "5:4": { label: "5:4", slots: 5, baseCols: 4, color: "quintuplet", desc: "پنتوله (5 نوت در فضای 4)" },
-    "7:6": { label: "7:6", slots: 7, baseCols: 6, color: "septuplet",  desc: "سپتوله (7 نوت در فضای 6)" },
-    "4:3": { label: "4:3", slots: 4, baseCols: 3, color: "quadruplet", desc: "کوادروپله (4 نوت در فضای 3)" },
-    "2:1": { label: "\u00BD",   slots: 2, baseCols: 1, color: "half",       desc: "Half \u2014 2 \u0646\u0648\u062a \u0633\u0647\u200c\u0644\u0627\u0686\u0646\u06af \u062f\u0631 \u0641\u0636\u0627\u06cc 1 \u0633\u0644\u0648\u0644" },
+    "3:2": {
+      label: "3:2",
+      slots: 3,
+      baseCols: 2,
+      color: "triplet",
+      desc: "تریوله (3 نوت در فضای 2)",
+    },
+    "2:3": {
+      label: "2:3",
+      slots: 2,
+      baseCols: 3,
+      color: "duplet",
+      desc: "دوپله (2 نوت در فضای 3)",
+    },
+    "6:4": {
+      label: "6:4",
+      slots: 6,
+      baseCols: 4,
+      color: "sextuplet",
+      desc: "سکستوله (6 نوت در فضای 4)",
+    },
+    "5:4": {
+      label: "5:4",
+      slots: 5,
+      baseCols: 4,
+      color: "quintuplet",
+      desc: "پنتوله (5 نوت در فضای 4)",
+    },
+    "7:6": {
+      label: "7:6",
+      slots: 7,
+      baseCols: 6,
+      color: "septuplet",
+      desc: "سپتوله (7 نوت در فضای 6)",
+    },
+    "4:3": {
+      label: "4:3",
+      slots: 4,
+      baseCols: 3,
+      color: "quadruplet",
+      desc: "کوادروپله (4 نوت در فضای 3)",
+    },
+    "2:1": {
+      label: "\u00BD",
+      slots: 2,
+      baseCols: 1,
+      color: "half",
+      desc: "Half \u2014 2 \u0646\u0648\u062a \u0633\u0647\u200c\u0644\u0627\u0686\u0646\u06af \u062f\u0631 \u0641\u0636\u0627\u06cc 1 \u0633\u0644\u0648\u0644",
+    },
   };
 
   // رنگ CSS class برای هر نوع
@@ -212,7 +254,9 @@ const app = (() => {
   function confirmTriplet() {
     const ri = parseInt(document.getElementById("inp-tuplet-row").value) - 1;
     const ci = parseInt(document.getElementById("inp-tuplet-col").value) - 1;
-    const typeRadio = document.querySelector('input[name="tuplet-type"]:checked');
+    const typeRadio = document.querySelector(
+      'input[name="tuplet-type"]:checked',
+    );
     if (!typeRadio) return toast("نوع را انتخاب کنید", true);
     const type = typeRadio.value;
 
@@ -236,7 +280,10 @@ const app = (() => {
             const [kri, kci] = key.split("-").map(Number);
             if (kri !== ri) continue;
             const t = state.triplets[key];
-            if (ci >= kci && ci < kci + t.baseCols) { foundKey = key; break; }
+            if (ci >= kci && ci < kci + t.baseCols) {
+              foundKey = key;
+              break;
+            }
           }
         }
       }
@@ -252,7 +299,10 @@ const app = (() => {
     if (isNaN(ri) || ri < 0 || ri >= state.rows.length)
       return toast("شماره میزان نامعتبر است", true);
     if (isNaN(ci) || ci < 0 || ci + def.baseCols > state.cols)
-      return toast(`شماره تکنیک نامعتبر — این نوع به ${def.baseCols} سلول متوالی نیاز دارد`, true);
+      return toast(
+        `شماره تکنیک نامعتبر — این نوع به ${def.baseCols} سلول متوالی نیاز دارد`,
+        true,
+      );
 
     // بررسی تداخل
     for (let s = 0; s < def.baseCols; s++) {
@@ -262,7 +312,11 @@ const app = (() => {
     }
 
     if (!state.triplets) state.triplets = {};
-    state.triplets[ri + "-" + ci] = { type, baseCols: def.baseCols, slots: def.slots };
+    state.triplets[ri + "-" + ci] = {
+      type,
+      baseCols: def.baseCols,
+      slots: def.slots,
+    };
 
     // مقداردهی اولیه slot‌های اضافی در tripletData
     if (!state.tripletData) state.tripletData = {};
@@ -275,7 +329,9 @@ const app = (() => {
 
     state.dirty = true;
     render();
-    toast(`${def.desc} در میزان ${ri + 1}، تکنیک ${ci + 1}–${ci + def.baseCols} اعمال شد ✓`);
+    toast(
+      `${def.desc} در میزان ${ri + 1}، تکنیک ${ci + 1}–${ci + def.baseCols} اعمال شد ✓`,
+    );
   }
 
   function removeTriplet(ri, startCi) {
@@ -308,7 +364,12 @@ const app = (() => {
 
   // رندر یک cell گروه ریتمی (tuplet)
   function renderTupletCell(ri, ci, tuplet, rowEl, colsPerBeat) {
-    const def = TUPLET_TYPES[tuplet.type] || { slots: tuplet.slots, baseCols: tuplet.baseCols, label: "?", color: "triplet" };
+    const def = TUPLET_TYPES[tuplet.type] || {
+      slots: tuplet.slots,
+      baseCols: tuplet.baseCols,
+      label: "?",
+      color: "triplet",
+    };
     const cell = document.createElement("div");
     const beatClass = ci % colsPerBeat === 0 ? " beat-start" : "";
     cell.className = `grid-cell tuplet-cell tuplet-${def.color}${beatClass}`;
@@ -349,17 +410,20 @@ const app = (() => {
       // مقدار: slot < baseCols → از row، slot >= baseCols → از tripletData
       let slotVal = "";
       if (slot < def.baseCols) {
-        slotVal = (state.rows[ri][ci + slot] || "");
+        slotVal = state.rows[ri][ci + slot] || "";
       } else {
-        slotVal = (state.tripletData[`${ri}-${ci}-${slot}`] || "");
+        slotVal = state.tripletData[`${ri}-${ci}-${slot}`] || "";
       }
 
       // دینامیک slot — کلید: "ri-ci_slot" در state.dynamics
       // برای slot 0..baseCols-1 از dynamics معمولی استفاده می‌کنیم (ci+slot)
       // برای slot >= baseCols از tupletDynamics
-      const dynKey = slot < def.baseCols
-        ? getCellDynamic(ri, ci + slot)
-        : ((state.tupletDynamics && state.tupletDynamics[`${ri}-${ci}-${slot}`]) || "");
+      const dynKey =
+        slot < def.baseCols
+          ? getCellDynamic(ri, ci + slot)
+          : (state.tupletDynamics &&
+              state.tupletDynamics[`${ri}-${ci}-${slot}`]) ||
+            "";
 
       if (slotVal && dynKey) {
         const defDyn = DYNAMICS_ALL.find((d) => d.key === dynKey);
@@ -394,7 +458,8 @@ const app = (() => {
           if (slot < def.baseCols) {
             if (state.dynamics[ri]) state.dynamics[ri][ci + slot] = "";
           } else {
-            if (state.tupletDynamics) delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
+            if (state.tupletDynamics)
+              delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
           }
         }
         state.dirty = true;
@@ -404,9 +469,14 @@ const app = (() => {
       // راست‌کلیک / لانگ‌پرس → منوی دینامیک
       const openDynForSlot = (anchorEl) => {
         if (!inp.value.trim()) return;
+
         if (slot < def.baseCols) {
           const realCi = ci + slot;
-          if (dynMenuState.ri === ri && dynMenuState.ci === realCi) {
+          if (
+            dynMenuState.ri === ri &&
+            dynMenuState.ci === realCi &&
+            dynMenuState.tupletSlot === undefined
+          ) {
             closeDynamicsMenu();
           } else {
             openDynamicsMenu(ri, realCi, anchorEl);
@@ -425,24 +495,30 @@ const app = (() => {
         }
       };
       inp.addEventListener("contextmenu", (e) => {
+        if (!inp.value.trim()) return;
         e.preventDefault();
         e.stopPropagation();
         openDynForSlot(inp);
       });
 
-     // ─── اصلاح رویدادهای موبایل برای تیوپلت ───
+      // موبایل: لانگ پرس (Long Press)
       let longPressTimer = null;
       let longPressFired = false;
 
-      inp.addEventListener("touchstart", (e) => {
-        longPressFired = false;
-        longPressTimer = setTimeout(() => {
+      inp.addEventListener(
+        "touchstart",
+        (e) => {
           if (!inp.value.trim()) return;
-          longPressFired = true;
-          e.preventDefault(); // جلوگیری از رفتارهای پیش‌فرض مرورگر در لانگ‌پرس
-          openDynForSlot(inp);
-        }, 500);
-      }, { passive: false }); // تغییر به false جهت اجازه به preventDefault
+          longPressFired = false;
+
+          // ایجاد تایمر ۵۰۰ میلی‌ثانیه‌ای برای تشخیص نگه داشتن انگشت
+          longPressTimer = setTimeout(() => {
+            longPressFired = true;
+            openDynForSlot(inp);
+          }, 500);
+        },
+        { passive: true },
+      );
 
       inp.addEventListener("touchend", () => {
         clearTimeout(longPressTimer);
@@ -452,19 +528,30 @@ const app = (() => {
         clearTimeout(longPressTimer);
       });
 
-      // در موبایل: تپ ساده روی خانه‌ای که متن دارد نیز منو را مدیریت کند
+      // موبایل/دسکتاپ: تپ ساده روی خانه‌های تیوپلت دارای متن
       inp.addEventListener("click", (e) => {
         if (longPressFired) {
+          // اگر قبلاً با لانگ‌پرس باز شده، کلیک معمولی کاری انجام ندهد
           longPressFired = false;
           return;
         }
-        const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+        const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(
+          navigator.userAgent,
+        );
         if (!isMobileDevice) return;
         if (!inp.value.trim()) return;
-        
-        e.stopPropagation(); // بسیار مهم: جلوگیری از انتشار کلیک به document و بسته شدن آنی منو
+        e.stopPropagation(); // بسیار مهم: جلوگیری از بسته شدن آنی منو توسط داکیومنت
         openDynForSlot(inp);
       });
+
+      slotDiv.appendChild(inp);
+      wrapper.appendChild(slotDiv);
+    }
+
+    cell.appendChild(wrapper);
+    rowEl.appendChild(cell);
+  }
 
   // منوی دینامیک برای slot‌های اضافی tuplet (slot >= baseCols)
   function openTupletSlotDynMenu(ri, ci, slot, anchorEl) {
@@ -528,7 +615,8 @@ const app = (() => {
     resetBtn.textContent = "حالت عادی";
     resetBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (state.tupletDynamics) delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
+      if (state.tupletDynamics)
+        delete state.tupletDynamics[`${ri}-${ci}-${slot}`];
       state.dirty = true;
       closeDynamicsMenu();
       render();
@@ -643,10 +731,20 @@ const app = (() => {
         const item = document.createElement("div");
         item.className = "sound-item";
         item.innerHTML =
-          '<button class="sound-item-play" data-name="' + name + '" title="پخش">▶</button>' +
-          '<span class="sound-item-name" title="' + name + '">' + name + "</span>" +
-          '<span class="sound-item-dur">' + dur + "</span>" +
-          '<button class="sound-item-del" data-name="' + name + '">✕</button>';
+          '<button class="sound-item-play" data-name="' +
+          name +
+          '" title="پخش">▶</button>' +
+          '<span class="sound-item-name" title="' +
+          name +
+          '">' +
+          name +
+          "</span>" +
+          '<span class="sound-item-dur">' +
+          dur +
+          "</span>" +
+          '<button class="sound-item-del" data-name="' +
+          name +
+          '">✕</button>';
         item.querySelector(".sound-item-play").onclick = function () {
           playSoundPreview(this.dataset.name);
         };
@@ -786,19 +884,23 @@ const app = (() => {
         // long press for mobile (replaces right-click)
         let longPressTimer = null;
         let longPressFired = false;
-        inp.addEventListener("touchstart", (e) => {
-          longPressFired = false;
-          longPressTimer = setTimeout(() => {
-            if (!inp.value.trim()) return;
-            longPressFired = true;
-            e.preventDefault();
-            if (dynMenuState.ri === ri && dynMenuState.ci === ci) {
-              closeDynamicsMenu();
-            } else {
-              openDynamicsMenu(ri, ci, inp);
-            }
-          }, 500);
-        }, { passive: true });
+        inp.addEventListener(
+          "touchstart",
+          (e) => {
+            longPressFired = false;
+            longPressTimer = setTimeout(() => {
+              if (!inp.value.trim()) return;
+              longPressFired = true;
+              e.preventDefault();
+              if (dynMenuState.ri === ri && dynMenuState.ci === ci) {
+                closeDynamicsMenu();
+              } else {
+                openDynamicsMenu(ri, ci, inp);
+              }
+            }, 500);
+          },
+          { passive: true },
+        );
         inp.addEventListener("touchend", () => {
           clearTimeout(longPressTimer);
         });
@@ -1087,15 +1189,18 @@ const app = (() => {
       )
       .join("\n");
     // ذخیره تریوله‌ها
-    const tripletPart = Object.keys(state.triplets || {}).length > 0
-      ? "\nTRIPLETS:" + JSON.stringify(state.triplets)
-      : "";
-    const tripletDataPart = Object.keys(state.tripletData || {}).length > 0
-      ? "\nTRIPLET_DATA:" + JSON.stringify(state.tripletData)
-      : "";
-    const tupletDynPart = Object.keys(state.tupletDynamics || {}).length > 0
-      ? "\nTUPLET_DYN:" + JSON.stringify(state.tupletDynamics)
-      : "";
+    const tripletPart =
+      Object.keys(state.triplets || {}).length > 0
+        ? "\nTRIPLETS:" + JSON.stringify(state.triplets)
+        : "";
+    const tripletDataPart =
+      Object.keys(state.tripletData || {}).length > 0
+        ? "\nTRIPLET_DATA:" + JSON.stringify(state.tripletData)
+        : "";
+    const tupletDynPart =
+      Object.keys(state.tupletDynamics || {}).length > 0
+        ? "\nTUPLET_DYN:" + JSON.stringify(state.tupletDynamics)
+        : "";
     return header + body + tripletPart + tripletDataPart + tupletDynPart;
   }
 
@@ -1112,17 +1217,23 @@ const app = (() => {
     let tupletDynamics = {};
     let dataLines = lines.slice(2);
     // جدا کردن بخش تریوله از انتهای فایل
-    dataLines = dataLines.filter(l => {
+    dataLines = dataLines.filter((l) => {
       if (l.startsWith("TRIPLETS:")) {
-        try { triplets = JSON.parse(l.slice(9)); } catch(e) {}
+        try {
+          triplets = JSON.parse(l.slice(9));
+        } catch (e) {}
         return false;
       }
       if (l.startsWith("TRIPLET_DATA:")) {
-        try { tripletData = JSON.parse(l.slice(13)); } catch(e) {}
+        try {
+          tripletData = JSON.parse(l.slice(13));
+        } catch (e) {}
         return false;
       }
       if (l.startsWith("TUPLET_DYN:")) {
-        try { tupletDynamics = JSON.parse(l.slice(11)); } catch(e) {}
+        try {
+          tupletDynamics = JSON.parse(l.slice(11));
+        } catch (e) {}
         return false;
       }
       return true;
@@ -1318,7 +1429,8 @@ const app = (() => {
 
   // build a flat list of {symbol, startSec, durationSec} events from current state
   function buildTimeline() {
-    const { rows, cols, tempo, meter, triplets, tripletData, tupletDynamics } = state;
+    const { rows, cols, tempo, meter, triplets, tripletData, tupletDynamics } =
+      state;
     const den = parseInt(meter.split("/")[1] || 4);
     const subdivsPerBeat = den <= 4 ? 4 : 2;
     const cellDur = 60 / tempo / subdivsPerBeat;
@@ -1340,7 +1452,10 @@ const app = (() => {
             if (slot < tuplet.baseCols) {
               sym = (row[ci + slot] || "").trim();
             } else {
-              sym = ((tripletData && tripletData[`${ri}-${ci}-${slot}`]) || "").trim();
+              sym = (
+                (tripletData && tripletData[`${ri}-${ci}-${slot}`]) ||
+                ""
+              ).trim();
             }
             if (sym && sym !== "-") {
               // دینامیک
@@ -1348,7 +1463,9 @@ const app = (() => {
               if (slot < tuplet.baseCols) {
                 dyn = getCellDynamic(ri, ci + slot);
               } else {
-                dyn = (tupletDynamics && tupletDynamics[`${ri}-${ci}-${slot}`]) || "";
+                dyn =
+                  (tupletDynamics && tupletDynamics[`${ri}-${ci}-${slot}`]) ||
+                  "";
               }
               events.push({
                 symbol: sym,
@@ -1499,8 +1616,14 @@ const app = (() => {
         // if long loop, stop scheduling once we'd exceed the end time
         if (playState.longLoop && nextStart >= playState.longLoopEndTime) {
           // schedule stop after last loop completes
-          const stopAt = (playState.longLoopEndTime - playState.startTime);
-          setTimeout(() => stopPlayback(), Math.max(0, stopAt * 1000 - (ctx.currentTime - playState.startTime) * 1000));
+          const stopAt = playState.longLoopEndTime - playState.startTime;
+          setTimeout(
+            () => stopPlayback(),
+            Math.max(
+              0,
+              stopAt * 1000 - (ctx.currentTime - playState.startTime) * 1000,
+            ),
+          );
           return;
         }
         // schedule 0.3s ahead
@@ -1682,7 +1805,10 @@ const app = (() => {
       return;
     }
     document.getElementById("modal-longloop").classList.add("show");
-    setTimeout(() => document.getElementById("inp-longloop-minutes").focus(), 100);
+    setTimeout(
+      () => document.getElementById("inp-longloop-minutes").focus(),
+      100,
+    );
   }
 
   async function confirmLongLoop() {
@@ -1701,9 +1827,8 @@ const app = (() => {
     toast("⏳ در حال ساخت فایل طولانی...");
 
     try {
-      const { buffer: renderedBuffer, loopDur } = await renderLongLoopBuffer(
-        durationSecs,
-      );
+      const { buffer: renderedBuffer, loopDur } =
+        await renderLongLoopBuffer(durationSecs);
 
       // کش کردن فایل ساخته‌شده، تا دکمه WAV همین فایل کامل را ذخیره کند
       longLoopBuffer = renderedBuffer;
