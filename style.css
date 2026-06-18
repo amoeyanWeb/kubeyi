@@ -146,7 +146,11 @@ body {
 
 #tempo-slider {
   user-select: none;
-  touch-action: none;
+  /* touch-action: none را برداشتیم تا رویداد لمسی به والد برسد */
+}
+
+.tempo-slider-row {
+  touch-action: manipulation;
 }
 
 #tempo-slider::-webkit-slider-thumb {
@@ -635,8 +639,10 @@ body {
     width: 70px;
     pointer-events: none;
   }
-  #disp-tempo {
+  .tempo-slider-row {
     cursor: pointer;
+    padding: 8px 4px;
+    margin: -8px -4px;
   }
 
   /* ── Main: vertical stack ── */

@@ -2166,11 +2166,43 @@ const app = (() => {
     });
 
   // در حالت موبایل خود اسلایدر غیرفعال است (pointer-events: none در CSS)
-  // و با لمس عدد تمپو (BPM) کنار آن، مودال تنظیم دقیق باز می‌شود
-  document.getElementById("disp-tempo").addEventListener("click", function () {
-    if (!isMobileLayout()) return;
-    openTempoModal();
-  });
+  // و با لمس کل ردیف (اسلایدر + عدد تمپو)، مودال تنظیم دقیق باز می‌شود.
+  // روی کل ردیف گوش می‌دهیم نه فقط روی متن عدد، چون هدف لمسی متن خیلی کوچک
+  // است و چون اسلایدر pointer-events:none دارد، لمس روی محدوده‌ی آن هم
+  // به همین ردیف می‌رسد.
+  const tempoRow = document.querySelector(".tempo-slider-row");
+  if (tempoRow) {
+    // click برای دسکتاپ
+    tempoRow.addEventListener("click", function () {
+      if (!isMobileLayout()) return;
+      openTempoModal();
+    });
+
+    // touchend برای موبایل — چون اسلایدر pointer-events:none دارد،
+    // رویداد لمسی مستقیم به این row می‌رسد ولی click ممکن است
+    // در بعضی مرورگرهای موبایل تأخیر داشته یا نرسد.
+    let _touchMoved = false;
+    tempoRow.addEventListener(
+      "touchstart",
+      function () {
+        _touchMoved = false;
+      },
+      { passive: true },
+    );
+    tempoRow.addEventListener(
+      "touchmove",
+      function () {
+        _touchMoved = true;
+      },
+      { passive: true },
+    );
+    tempoRow.addEventListener("touchend", function (e) {
+      if (_touchMoved) return; // اگر کاربر اسکرول کرده بود، باز نشود
+      if (!isMobileLayout()) return;
+      e.preventDefault(); // جلوگیری از تولید click تکراری
+      openTempoModal();
+    });
+  }
 
   return {
     newFile,

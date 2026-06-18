@@ -403,6 +403,30 @@
       </div>
     </div>
 
+    <!-- TEMPO MODAL (موبایل) -->
+    <div class="modal-overlay" id="modal-tempo">
+      <div class="modal">
+        <h3>🎵 تنظیم تمپو</h3>
+        <div class="field">
+          <label>تمپو (BPM) — بین ۴۰ تا ۲۴۰</label>
+          <input
+            type="number"
+            id="inp-tempo-modal"
+            value="120"
+            min="40"
+            max="240"
+            dir="ltr"
+          />
+        </div>
+        <div class="modal-btns">
+          <button class="btn" onclick="app.cancelTempoModal()">انصراف</button>
+          <button class="btn accent-btn" onclick="app.confirmTempoModal()">
+            تأیید
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="app.js"></script>
     <script>
       window.addEventListener("beforeunload", (e) => {
