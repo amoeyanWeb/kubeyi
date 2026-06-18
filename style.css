@@ -753,22 +753,20 @@ body {
 
 /* ══════════════ SOUNDS ══════════════ */
 #sound-badge {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  background: #dc2626;
+  display: none; /* وقتی خالیه پنهانه */
+  background: rgba(255,255,255,0.25);
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  padding: 0 10px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-right: 4px;
+  vertical-align: middle;
   letter-spacing: 0.5px;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 #sound-badge.loaded {
-  background: var(--green);
-  color: #fff;
+  display: inline-block;
 }
 .btn.sound-btn {
   background: linear-gradient(135deg, #2d6a9f, #1e4f7a);
@@ -888,10 +886,7 @@ body {
 }
 
 @media (max-width: 700px) {
-  #sound-badge {
-    font-size: 9px;
-    padding: 2px 6px;
-  }
+  /* badge داخل دکمه است، نیاز به override جداگانه ندارد */
 }
 
 /* ══════════════ PLAYBACK ══════════════ */

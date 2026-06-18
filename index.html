@@ -42,8 +42,6 @@
           <div class="info-label">میزان‌ها</div>
           <div class="info-value" id="disp-rows">—</div>
         </div>
-        <div class="separator"></div>
-        <span id="sound-badge">دیتا موجود نیست</span>
       </div>
     </div>
 
@@ -58,11 +56,15 @@
         <button class="btn" onclick="app.saveAs()">Save As</button>
         <button class="btn wav-btn" onclick="app.saveWav()">💾 WAV</button>
         <div class="btn-divider"></div>
-        <button class="btn sound-btn" onclick="app.loadSounds()">
-          Load Samples
+        <button class="btn sound-btn" onclick="app.viewSounds()">
+          🎵 Samples<span id="sound-badge"></span>
         </button>
-        <button class="btn view-btn" onclick="app.viewSounds()">
-          View Samples
+        <button
+          class="btn"
+          onclick="app.openEsharahModal()"
+          style="background: var(--surface2); border-color: var(--border)"
+        >
+          👉 اشاره
         </button>
       </div>
 
@@ -272,10 +274,10 @@
     <!-- VIEW SOUNDS MODAL -->
     <div class="modal-overlay" id="modal-viewsounds">
       <div class="modal modal-sounds">
-        <h3>👁 فایل‌های صدای لود شده</h3>
+        <h3>🎵 سمپل‌ها</h3>
         <div id="sounds-list-container">
           <div id="sounds-list-empty" class="sounds-empty">
-            هیچ صدایی لود نشده
+            هیچ صدایی لود نشده — دکمه «Load Samples» را بزنید
           </div>
           <div id="sounds-list"></div>
         </div>
@@ -289,6 +291,9 @@
             "
           >
             بستن
+          </button>
+          <button class="btn sound-btn" onclick="app.loadSounds()">
+            ＋ Load Samples
           </button>
         </div>
       </div>
@@ -426,7 +431,61 @@
         </div>
       </div>
     </div>
-
+    <!-- ══════════════ ESHARAH MODAL ══════════════ -->
+    <div class="modal-overlay" id="modal-esharah">
+      <div class="modal" style="width: 420px; max-width: 90%">
+        <h3>👉 لیست اشاره‌ها</h3>
+        <div
+          id="esharah-list"
+          style="
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+            direction: ltr;
+          "
+        >
+          <script>
+            const symbols = ["(_", "D_", "T_", "o_", "1_", "2_", "3_"];
+            document.write(
+              symbols
+                .map(
+                  (sym) => `
+              <div class="esharah-row" style="display: flex; align-items: center; gap: 8px; justify-content: space-between;">
+                <span style="font-weight: 700; font-size: 16px; width: 25px; text-align: center; color: var(--accent); font-family: monospace;">${sym}</span>
+                <span style="color: var(--text-dim);">:</span>
+                
+                <select class="esharah-sel-1" style="flex: 1; padding: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; text-align: center;">
+                  <option value="">None</option>
+                </select>
+                
+                <span style="color: var(--text-dim); font-weight: bold;">+</span>
+                
+                <select class="esharah-sel-2" style="flex: 1; padding: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; text-align: center;">
+                  <option value="">None</option>
+                </select>
+                
+                <button class="btn" onclick="app.setEsharah('${sym}', this)" style="padding: 6px 14px; font-size: 12px; background: var(--surface2);">set</button>
+              </div>
+            `,
+                )
+                .join(""),
+            );
+          </script>
+        </div>
+        <div class="modal-btns">
+          <button
+            class="btn"
+            onclick="
+              document.getElementById('modal-esharah').classList.remove('show')
+            "
+            style="width: 100%"
+          >
+            برگشت
+          </button>
+        </div>
+      </div>
+    </div>
     <script src="app.js"></script>
     <script>
       window.addEventListener("beforeunload", (e) => {

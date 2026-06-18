@@ -2,6 +2,9 @@ const app = (() => {
   // ══════════════════════════════════════
   // STATE
   // ══════════════════════════════════════
+
+  const ESHARAH_TOTAL_DURATION = 50; // زمان کل اشاره به میلی‌ثانیه
+
   let state = {
     name: "",
     meter: "4/4",
@@ -17,6 +20,8 @@ const app = (() => {
     filename: "",
     dirty: false,
   };
+
+  // در ابتدای تنظیمات صوتی یا کانفینگ‌های اصلی برنامه (مثلاً در ابتدای app.js یا بخش پخش‌کننده)
 
   // ══════════════════════════════════════
   // AUTOSAVE (ذخیره خودکار در حافظه مرورگر)
@@ -718,10 +723,10 @@ const app = (() => {
     const badge = document.getElementById("sound-badge");
     const count = Object.keys(sounds).length;
     if (count === 0) {
-      badge.textContent = "دیتا موجود نیست";
+      badge.textContent = "";
       badge.classList.remove("loaded");
     } else {
-      badge.textContent = count + " صدا لود شد";
+      badge.textContent = count;
       badge.classList.add("loaded");
     }
   }
@@ -763,9 +768,8 @@ const app = (() => {
 
       updateSoundBadge();
       toast(loaded + " فایل WAV با موفقیت لود شد ✓");
-      // اگر modal باز بود، رفرش بشه
-      const modal = document.getElementById("modal-viewsounds");
-      if (modal && modal.classList.contains("show")) viewSounds();
+      // مودال را رفرش کن و باز نگه‌دار (یا باز کن)
+      viewSounds();
     };
 
     input.click();
@@ -1536,61 +1540,63 @@ const app = (() => {
   }
 
   // build a flat list of {symbol, startSec, durationSec} events from current state
+  // build a flat list of {symbol, startSec, durationSec} events from current state
   function buildTimeline() {
-    const { rows, cols, tempo, meter, triplets, tripletData, tupletDynamics } =
-      state;
-    const den = parseInt(meter.split("/")[1] || 4);
+    const { rows, cols, tempo, meter, triplets } = state;
+    if (rows.length === 0) return { events: [], totalDur: 0 };
+
+    const parts = meter.split("/");
+    const den = parseInt(parts[1] || "4");
     const subdivsPerBeat = den <= 4 ? 4 : 2;
     const cellDur = 60 / tempo / subdivsPerBeat;
 
-    const events = [];
+    let events = [];
     let t = 0;
 
     for (let ri = 0; ri < rows.length; ri++) {
       const row = rows[ri];
       let ci = 0;
       while (ci < cols) {
-        // بررسی tuplet
-        const tuplet = triplets && triplets[ri + "-" + ci];
+        const tuplet = triplets ? triplets[ri + "-" + ci] : null;
         if (tuplet && tuplet.baseCols) {
-          const totalDur = tuplet.baseCols * cellDur;
-          const noteDur = totalDur / tuplet.slots;
-          for (let slot = 0; slot < tuplet.slots; slot++) {
-            let sym = "";
-            if (slot < tuplet.baseCols) {
-              sym = (row[ci + slot] || "").trim();
-            } else {
-              sym = (
-                (tripletData && tripletData[`${ri}-${ci}-${slot}`]) ||
-                ""
-              ).trim();
-            }
-            if (sym && sym !== "-") {
-              // دینامیک
-              let dyn = "";
+          const def = TUPLET_TYPES[tuplet.type];
+          if (def) {
+            const totalDur = tuplet.baseCols * cellDur;
+            const noteDur = totalDur / tuplet.slots;
+            for (let slot = 0; slot < tuplet.slots; slot++) {
+              let sym = "";
               if (slot < tuplet.baseCols) {
-                dyn = getCellDynamic(ri, ci + slot);
+                sym = row[ci + slot] || "";
               } else {
-                dyn =
-                  (tupletDynamics && tupletDynamics[`${ri}-${ci}-${slot}`]) ||
+                sym =
+                  (state.tripletData &&
+                    state.tripletData[`${ri}-${ci}-${slot}`]) ||
                   "";
               }
-              events.push({
-                symbol: sym,
-                row: ri,
-                startSec: t + slot * noteDur,
-                durationSec: noteDur,
-                dynamic: dyn,
-                isTuplet: true,
-              });
+              sym = sym.trim();
+              if (sym && sym !== "-") {
+                const dyn =
+                  slot < tuplet.baseCols
+                    ? getCellDynamic(ri, ci + slot)
+                    : (state.tupletDynamics &&
+                        state.tupletDynamics[`${ri}-${ci}-${slot}`]) ||
+                      "";
+                events.push({
+                  symbol: sym,
+                  row: ri,
+                  startSec: t + slot * noteDur,
+                  durationSec: noteDur,
+                  dynamic: dyn,
+                  isTuplet: true,
+                });
+              }
             }
           }
-          t += totalDur;
+          t += cellDur * tuplet.baseCols;
           ci += tuplet.baseCols;
           continue;
         }
 
-        // سلول‌های درون tuplet رد می‌شوند (چون در iteration قبلی مصرف شدند)
         if (getTupletRole(ri, ci) && !(triplets && triplets[ri + "-" + ci])) {
           ci++;
           t += cellDur;
@@ -1603,13 +1609,14 @@ const app = (() => {
           t += cellDur;
           continue;
         }
-        // count duration: sym + following '-' cells
+
         let dur = cellDur;
         let next = ci + 1;
         while (next < cols && row[next] && row[next].trim() === "-") {
           dur += cellDur;
           next++;
         }
+
         events.push({
           symbol: sym,
           row: ri,
@@ -1622,9 +1629,58 @@ const app = (() => {
       }
     }
 
-    return { events, totalDur: t };
-  }
+    // ──────────────────────────────────────────────────────────────
+    // ⚡ بخش جدید: پردازش و اضافه کردن تکنیک‌های اشاره قبل از نت اصلی
+    // ──────────────────────────────────────────────────────────────
+    let finalEvents = [];
+    const totalEsharahSec = ESHARAH_TOTAL_DURATION / 1000; // تبدیل ۵۰ میلی ثانیه به ثانیه (0.05)
+    const singleTechSec = totalEsharahSec / 2; // زمان هر زیرتکنیک اشاره (0.025)
 
+    events.forEach((ev) => {
+      // بررسی اینکه آیا این تکنیک در تنظیمات اشارات تعریف شده است یا خیر
+      const esharahConfig =
+        state.esharahSettings && state.esharahSettings[ev.symbol];
+
+      if (esharahConfig) {
+        // ۱. اضافه کردن تکنیک اول اشاره (زمان: زمان نت اصلی منهای کل زمان اشاره)
+        if (esharahConfig.sel1) {
+          const t1 = ev.startSec - totalEsharahSec;
+          if (t1 >= 0) {
+            // جلوگیری از منفی شدن زمان در اولین نت قطعه
+            finalEvents.push({
+              symbol: esharahConfig.sel1,
+              row: ev.row,
+              startSec: t1,
+              durationSec: singleTechSec,
+              dynamic: ev.dynamic, // استفاده از نوانس نت اصلی برای هماهنگی صدا
+            });
+          }
+        }
+
+        // ۲. اضافه کردن تکنیک دوم اشاره (زمان: زمان نت اصلی منهای نصف زمان اشاره)
+        if (esharahConfig.sel2 && esharahConfig.sel2 !== "") {
+          const t2 = ev.startSec - singleTechSec;
+          if (t2 >= 0) {
+            finalEvents.push({
+              symbol: esharahConfig.sel2,
+              row: ev.row,
+              startSec: t2,
+              durationSec: singleTechSec,
+              dynamic: ev.dynamic,
+            });
+          }
+        }
+      }
+
+      // ۳. خود تکنیک اصلی بدون دستخوش تغییر در زمان اصلی خودش اضافه می‌شود
+      finalEvents.push(ev);
+    });
+
+    // مرتب‌سازی مجدد رویدادها بر اساس زمان صعودی
+    finalEvents.sort((a, b) => a.startSec - b.startSec);
+
+    return { events: finalEvents, totalDur: t };
+  }
   // اعمال حجم بر اساس نوانس (ff..pp) یا شکل قوسی (< > <>) روی یک gainNode
   // absStart: زمان مطلق شروع نت در AudioContext/OfflineAudioContext
   // bufDur: طول کامل فایل صوتی منبع
@@ -2203,6 +2259,71 @@ const app = (() => {
       openTempoModal();
     });
   }
+  // ══════════════════════════════════════
+  // ESHARAH SYSTEM (سیستم اشاره)
+  // ══════════════════════════════════════
+  // ══════════════════════════════════════
+  // ESHARAH SYSTEM (سیستم اشاره)
+  // ══════════════════════════════════════
+  function openEsharahModal() {
+    // if (!state.name) {
+    //   return toast("ابتدا یک قطعه ایجاد کنید", true);
+    // }
+
+    const audioSounds =
+      typeof sounds !== "undefined" ? sounds : window.sounds || null;
+
+    if (!audioSounds || Object.keys(audioSounds).length === 0) {
+      return toast("لطفاً ابتدا سمپل‌ها (صداها) را بارگذاری کنید", true);
+    }
+
+    const sampleNames = Object.keys(audioSounds).map((name) => {
+      return name.toLowerCase().endsWith(".wav") ? name.slice(0, -4) : name;
+    });
+
+    const allSelects = document.querySelectorAll("#esharah-list select");
+    allSelects.forEach((select) => {
+      const currentVal = select.value;
+
+      // تغییر متن پیش‌فرض همه‌ی کمبوباکس‌ها به None
+      select.innerHTML = `<option value="">None</option>`;
+
+      sampleNames.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+
+      if (currentVal && sampleNames.includes(currentVal)) {
+        select.value = currentVal;
+      }
+    });
+
+    const modalEl = document.getElementById("modal-esharah");
+    if (modalEl) {
+      modalEl.classList.add("show");
+    }
+  }
+
+  function setEsharah(sym, btnEl) {
+    const rowEl = btnEl.closest(".esharah-row");
+    const sel1 = rowEl.querySelector(".esharah-sel-1").value;
+    const sel2 = rowEl.querySelector(".esharah-sel-2").value;
+
+    if (!sel1) {
+      return toast("لطفاً انتخاب ۱ را مشخص کنید", true);
+    }
+
+    // ذخیره واقعی در state برنامه
+    state.esharahSettings[sym] = {
+      sel1: sel1,
+      sel2: sel2 || "",
+    };
+
+    markDirty();
+    toast(`تنظیمات اشاره (${sym}) اعمال شد ✓`);
+  }
 
   return {
     newFile,
@@ -2234,5 +2355,7 @@ const app = (() => {
     confirmSaveWav,
     openTripletModal,
     confirmTriplet,
+    openEsharahModal,
+    setEsharah,
   };
 })();
