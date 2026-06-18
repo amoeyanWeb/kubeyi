@@ -76,7 +76,7 @@ const app = (() => {
       `یک نسخه‌ی ذخیره‌نشده از قطعه «${saved.name}» پیدا شد (احتمالاً قبلاً بدون ذخیره خارج شده‌اید).\nمی‌خواهید آن را بازیابی کنید؟`,
     );
     if (ok) {
-      state = saved;
+      state = { esharahSettings: {}, ...saved };
       render();
       updateStatus();
       toast(`نسخه‌ی ذخیره‌نشده‌ی «${saved.name}» بازیابی شد ✓`);
@@ -1133,6 +1133,7 @@ const app = (() => {
       triplets: {},
       tripletData: {},
       tupletDynamics: {},
+      esharahSettings: {},
       selected: -1,
       clipboard: null,
       clipboardDynamics: null,
@@ -1281,7 +1282,11 @@ const app = (() => {
       Object.keys(state.tupletDynamics || {}).length > 0
         ? "\nTUPLET_DYN:" + JSON.stringify(state.tupletDynamics)
         : "";
-    return header + body + tripletPart + tripletDataPart + tupletDynPart;
+    const esharahPart =
+      Object.keys(state.esharahSettings || {}).length > 0
+        ? "\nESHARAH_SETTINGS:" + JSON.stringify(state.esharahSettings)
+        : "";
+    return header + body + tripletPart + tripletDataPart + tupletDynPart + esharahPart;
   }
 
   function deserialize(text) {
@@ -1295,6 +1300,7 @@ const app = (() => {
     let triplets = {};
     let tripletData = {};
     let tupletDynamics = {};
+    let esharahSettings = {};
     let dataLines = lines.slice(2);
     // جدا کردن بخش تریوله از انتهای فایل
     dataLines = dataLines.filter((l) => {
@@ -1313,6 +1319,12 @@ const app = (() => {
       if (l.startsWith("TUPLET_DYN:")) {
         try {
           tupletDynamics = JSON.parse(l.slice(11));
+        } catch (e) {}
+        return false;
+      }
+      if (l.startsWith("ESHARAH_SETTINGS:")) {
+        try {
+          esharahSettings = JSON.parse(l.slice(17));
         } catch (e) {}
         return false;
       }
@@ -1347,6 +1359,7 @@ const app = (() => {
       triplets,
       tripletData,
       tupletDynamics,
+      esharahSettings,
     };
   }
 
@@ -1393,6 +1406,7 @@ const app = (() => {
           const parsed = deserialize(ev.target.result);
           state = {
             ...parsed,
+            esharahSettings: parsed.esharahSettings || {},
             selected: -1,
             clipboard: null,
             clipboardDynamics: null,
@@ -1644,31 +1658,26 @@ const app = (() => {
       if (esharahConfig) {
         // ۱. اضافه کردن تکنیک اول اشاره (زمان: زمان نت اصلی منهای کل زمان اشاره)
         if (esharahConfig.sel1) {
-          const t1 = ev.startSec - totalEsharahSec;
-          if (t1 >= 0) {
-            // جلوگیری از منفی شدن زمان در اولین نت قطعه
-            finalEvents.push({
-              symbol: esharahConfig.sel1,
-              row: ev.row,
-              startSec: t1,
-              durationSec: singleTechSec,
-              dynamic: ev.dynamic, // استفاده از نوانس نت اصلی برای هماهنگی صدا
-            });
-          }
+          const t1 = Math.max(0, ev.startSec - totalEsharahSec);
+          finalEvents.push({
+            symbol: esharahConfig.sel1,
+            row: ev.row,
+            startSec: t1,
+            durationSec: singleTechSec,
+            dynamic: ev.dynamic,
+          });
         }
 
         // ۲. اضافه کردن تکنیک دوم اشاره (زمان: زمان نت اصلی منهای نصف زمان اشاره)
         if (esharahConfig.sel2 && esharahConfig.sel2 !== "") {
-          const t2 = ev.startSec - singleTechSec;
-          if (t2 >= 0) {
-            finalEvents.push({
-              symbol: esharahConfig.sel2,
-              row: ev.row,
-              startSec: t2,
-              durationSec: singleTechSec,
-              dynamic: ev.dynamic,
-            });
-          }
+          const t2 = Math.max(0, ev.startSec - singleTechSec);
+          finalEvents.push({
+            symbol: esharahConfig.sel2,
+            row: ev.row,
+            startSec: t2,
+            durationSec: singleTechSec,
+            dynamic: ev.dynamic,
+          });
         }
       }
 
@@ -2304,6 +2313,38 @@ const app = (() => {
     if (modalEl) {
       modalEl.classList.add("show");
     }
+
+    // بازنمایی preview برای اشاره‌هایی که قبلاً set شده‌اند
+    const rows = document.querySelectorAll("#esharah-list .esharah-row");
+    rows.forEach((rowEl) => {
+      const sym = rowEl.querySelector("span[style*='monospace']")?.textContent?.trim();
+      if (!sym) return;
+      const cfg = state.esharahSettings && state.esharahSettings[sym];
+
+      // بازیابی مقادیر select از state
+      if (cfg && cfg.sel1) {
+        const sel1El = rowEl.querySelector(".esharah-sel-1");
+        const sel2El = rowEl.querySelector(".esharah-sel-2");
+        if (sel1El && sampleNames.includes(cfg.sel1)) sel1El.value = cfg.sel1;
+        if (sel2El && cfg.sel2 && sampleNames.includes(cfg.sel2)) sel2El.value = cfg.sel2;
+
+        // نمایش preview
+        const previewEl = rowEl.querySelector(".esharah-preview");
+        if (previewEl) {
+          const label = cfg.sel2 ? `${cfg.sel1}  +  ${cfg.sel2}` : cfg.sel1;
+          previewEl.textContent = `[ ${label} ] → ${sym}`;
+          previewEl.style.color = "var(--accent)";
+        }
+
+        // فعال‌سازی دکمه پلی
+        const playBtn = rowEl.querySelector(".esharah-play-btn");
+        if (playBtn) {
+          playBtn.disabled = false;
+          playBtn.style.opacity = "1";
+          playBtn.style.pointerEvents = "auto";
+        }
+      }
+    });
   }
 
   function setEsharah(sym, btnEl) {
@@ -2321,8 +2362,58 @@ const app = (() => {
       sel2: sel2 || "",
     };
 
+    // بروزرسانی نمایش preview
+    const previewEl = rowEl.querySelector(".esharah-preview");
+    if (previewEl) {
+      const label = sel2 ? `${sel1}  +  ${sel2}` : sel1;
+      previewEl.textContent = `[ ${label} ] → ${sym}`;
+      previewEl.style.color = "var(--accent)";
+    }
+
+    // فعال کردن دکمه پلی
+    const playBtn = rowEl.querySelector(".esharah-play-btn");
+    if (playBtn) {
+      playBtn.disabled = false;
+      playBtn.style.opacity = "1";
+      playBtn.style.pointerEvents = "auto";
+    }
+
     markDirty();
     toast(`تنظیمات اشاره (${sym}) اعمال شد ✓`);
+  }
+
+  function playEsharahPreview(sym, btnEl) {
+    const cfg = state.esharahSettings && state.esharahSettings[sym];
+    if (!cfg || !cfg.sel1) return toast("اشاره‌ای تنظیم نشده", true);
+
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime + 0.05;
+    const stepSec = ESHARAH_TOTAL_DURATION / 1000 / (cfg.sel2 ? 2 : 1);
+
+    // پخش sel1
+    const buf1 = resolveSound(cfg.sel1);
+    if (buf1) {
+      const src1 = ctx.createBufferSource();
+      src1.buffer = buf1;
+      src1.connect(ctx.destination);
+      src1.start(now);
+    }
+
+    // پخش sel2 بعد از stepSec (اگر وجود دارد)
+    if (cfg.sel2) {
+      const buf2 = resolveSound(cfg.sel2);
+      if (buf2) {
+        const src2 = ctx.createBufferSource();
+        src2.buffer = buf2;
+        src2.connect(ctx.destination);
+        src2.start(now + stepSec);
+      }
+    }
+
+    // فیدبک بصری روی دکمه
+    btnEl.textContent = "▶ ...";
+    const totalMs = ESHARAH_TOTAL_DURATION + 100;
+    setTimeout(() => { btnEl.textContent = "▶ پلی"; }, totalMs);
   }
 
   return {
@@ -2357,5 +2448,6 @@ const app = (() => {
     confirmTriplet,
     openEsharahModal,
     setEsharah,
+    playEsharahPreview,
   };
 })();

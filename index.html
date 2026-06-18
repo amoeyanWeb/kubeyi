@@ -433,39 +433,40 @@
     </div>
     <!-- ══════════════ ESHARAH MODAL ══════════════ -->
     <div class="modal-overlay" id="modal-esharah">
-      <div class="modal" style="width: 420px; max-width: 90%">
+      <div class="modal" style="width: 480px; max-width: 95%">
         <h3>👉 لیست اشاره‌ها</h3>
         <div
           id="esharah-list"
           style="
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             margin-bottom: 20px;
             direction: ltr;
           "
         >
           <script>
-            const symbols = ["(_", "D_", "T_", "o_", "1_", "2_", "3_"];
+            const symbols = ["(_", "d_", "t_", "o_", "1_", "2_", "3_"];
             document.write(
               symbols
                 .map(
                   (sym) => `
-              <div class="esharah-row" style="display: flex; align-items: center; gap: 8px; justify-content: space-between;">
-                <span style="font-weight: 700; font-size: 16px; width: 25px; text-align: center; color: var(--accent); font-family: monospace;">${sym}</span>
-                <span style="color: var(--text-dim);">:</span>
-                
-                <select class="esharah-sel-1" style="flex: 1; padding: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; text-align: center;">
-                  <option value="">None</option>
-                </select>
-                
-                <span style="color: var(--text-dim); font-weight: bold;">+</span>
-                
-                <select class="esharah-sel-2" style="flex: 1; padding: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; outline: none; text-align: center;">
-                  <option value="">None</option>
-                </select>
-                
-                <button class="btn" onclick="app.setEsharah('${sym}', this)" style="padding: 6px 14px; font-size: 12px; background: var(--surface2);">set</button>
+              <div class="esharah-row" style="display:flex; flex-direction:column; gap:6px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:700; font-size:16px; width:28px; text-align:center; color:var(--accent); font-family:monospace; flex-shrink:0;">${sym}</span>
+                  <select class="esharah-sel-1" style="flex:1; padding:5px 6px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:13px; outline:none;">
+                    <option value="">— sel 1 —</option>
+                  </select>
+                  <span style="color:var(--text-dim); font-weight:bold; flex-shrink:0;">+</span>
+                  <select class="esharah-sel-2" style="flex:1; padding:5px 6px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:13px; outline:none;">
+                    <option value="">— sel 2 —</option>
+                  </select>
+                  <button class="btn" onclick="app.setEsharah('${sym}', this)" style="padding:5px 12px; font-size:12px; flex-shrink:0;">set</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; padding-right:36px;">
+                  <span class="esharah-preview" style="font-size:12px; color:var(--text-dim); font-family:monospace; flex:1;">—</span>
+                  <button class="btn esharah-play-btn" onclick="app.playEsharahPreview('${sym}', this)" style="padding:4px 12px; font-size:12px; opacity:0.4; pointer-events:none;" disabled>▶ پلی</button>
+                </div>
               </div>
             `,
                 )
@@ -476,9 +477,7 @@
         <div class="modal-btns">
           <button
             class="btn"
-            onclick="
-              document.getElementById('modal-esharah').classList.remove('show')
-            "
+            onclick="document.getElementById('modal-esharah').classList.remove('show')"
             style="width: 100%"
           >
             برگشت
