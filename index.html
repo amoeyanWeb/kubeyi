@@ -97,6 +97,21 @@
         <button class="btn triplet-btn" onclick="app.openTripletModal()">
           ⑇ Tuplet
         </button>
+        <div class="btn-divider"></div>
+        <button
+          class="btn play-from-btn"
+          id="btn-play-from"
+          onclick="app.playFromSelected()"
+        >
+          ▶| Play from
+        </button>
+        <button
+          class="btn play-only-btn"
+          id="btn-play-only"
+          onclick="app.playOnlySelected()"
+        >
+          ▶‖ Play only
+        </button>
       </div>
     </div>
 
@@ -183,7 +198,7 @@
         </div>
         <div class="field">
           <label>تمپو </label>
-          <input type="number" id="inp-tempo" value="120" min="20" max="400" />
+          <input type="number" id="inp-tempo" value="85" min="20" max="400" />
         </div>
         <div class="field">
           <label>عدد میزان</label>
@@ -206,7 +221,7 @@
         </div>
         <div class="field">
           <label>تعداد میزان‌های اولیه</label>
-          <input type="number" id="inp-initrows" value="16" min="1" max="200" />
+          <input type="number" id="inp-initrows" value="2" min="1" max="200" />
         </div>
         <div class="modal-btns">
           <button class="btn" onclick="app.cancelNew()">انصراف</button>
@@ -301,113 +316,396 @@
 
     <!-- TUPLET / POLYRHYTHM MODAL -->
     <div class="modal-overlay" id="modal-triplet">
-      <div class="modal modal-tuplet">
-        <h3>⑇ گروه ریتمی</h3>
-        <p
+      <div
+        class="modal modal-tuplet"
+        style="
+          max-width: 220px;
+          padding: 10px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          box-sizing: border-box;
+        "
+      >
+
+
+        <fieldset
           style="
-            font-size: 12px;
-            color: var(--text-dim);
-            margin-bottom: 14px;
-            line-height: 1.6;
+            width: 100%;
+            border: 1px solid var(--border, #c8d0d8);
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin: 0;
+            box-sizing: border-box;
           "
         >
-          چند سلول را به گروه ریتمی تبدیل می‌کند.<br />
-          زمان کل گروه = تعداد سلول‌های پایه × زمان یک سلول.
-        </p>
-        <div
-          style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px"
-        >
-          <div class="field" style="flex: 1; min-width: 90px">
-            <label>شماره میزان</label>
-            <input
-              type="number"
-              id="inp-tuplet-row"
-              min="1"
-              dir="ltr"
-              placeholder="مثال: 3"
-            />
-          </div>
-          <div class="field" style="flex: 1; min-width: 90px">
-            <label>شماره تکنیک (سلول اول)</label>
-            <input
-              type="number"
-              id="inp-tuplet-col"
-              min="1"
-              dir="ltr"
-              placeholder="مثال: 5"
-            />
-          </div>
-        </div>
-        <div class="field">
-          <label style="margin-bottom: 8px; display: block"
-            >نوع گروه ریتمی</label
+          <legend
+            style="
+              font-size: 11px;
+              font-weight: bold;
+              padding: 0 4px;
+              color: var(--accent);
+              text-align: right;
+              margin-right: 6px;
+            "
           >
-          <div class="tuplet-radio-grid">
-            <label class="tuplet-radio-opt tuplet-opt-triplet">
-              <input type="radio" name="tuplet-type" value="3:2" checked />
-              <span class="tuplet-radio-label">3:2</span>
-              <span class="tuplet-radio-desc">تریوله — 3 نوت در فضای 2</span>
-            </label>
-            <label class="tuplet-radio-opt tuplet-opt-duplet">
-              <input type="radio" name="tuplet-type" value="2:3" />
-              <span class="tuplet-radio-label">2:3</span>
-              <span class="tuplet-radio-desc">دوپله — 2 نوت در فضای 3</span>
-            </label>
-            <label class="tuplet-radio-opt tuplet-opt-sextuplet">
-              <input type="radio" name="tuplet-type" value="6:4" />
-              <span class="tuplet-radio-label">6:4</span>
-              <span class="tuplet-radio-desc">سکستوله — 6 نوت در فضای 4</span>
-            </label>
-            <label class="tuplet-radio-opt tuplet-opt-quintuplet">
-              <input type="radio" name="tuplet-type" value="5:4" />
-              <span class="tuplet-radio-label">5:4</span>
-              <span class="tuplet-radio-desc">پنتوله — 5 نوت در فضای 4</span>
-            </label>
-            <label class="tuplet-radio-opt tuplet-opt-septuplet">
-              <input type="radio" name="tuplet-type" value="7:6" />
-              <span class="tuplet-radio-label">7:6</span>
-              <span class="tuplet-radio-desc">سپتوله — 7 نوت در فضای 6</span>
-            </label>
-            <label class="tuplet-radio-opt tuplet-opt-quadruplet">
-              <input type="radio" name="tuplet-type" value="4:3" />
-              <span class="tuplet-radio-label">4:3</span>
-              <span class="tuplet-radio-desc">کوادروپله — 4 نوت در فضای 3</span>
-            </label>
-          </div>
-          <div class="tuplet-remove-divider"></div>
-          <div class="tuplet-radio-grid">
-            <label class="tuplet-radio-opt tuplet-opt-half">
-              <input type="radio" name="tuplet-type" value="2:1" />
-              <span class="tuplet-radio-label">½</span>
-              <span class="tuplet-radio-desc"
-                >هالف — 2 نوت سه‌لاچنگ در فضای 1 سلول</span
+            گروه ریتمی
+          </legend>
+
+          <div
+            class="tuplet-radio-grid"
+            style="display: flex; flex-direction: column; gap: 4px; width: 100%"
+          >
+            <label
+              class="tuplet-radio-opt tuplet-opt-triplet"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="3:2"
+                checked
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >3:2</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >تریوله</span
               >
             </label>
-            <label class="tuplet-radio-opt tuplet-opt-remove">
-              <input type="radio" name="tuplet-type" value="remove" />
-              <span class="tuplet-radio-label">✕</span>
-              <span class="tuplet-radio-desc"
-                >حذف تیوپلت — سلول‌ها خالی می‌شوند</span
+
+            <label
+              class="tuplet-radio-opt tuplet-opt-duplet"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="2:3"
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >2:3</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >دوپله</span
+              >
+            </label>
+
+            <label
+              class="tuplet-radio-opt tuplet-opt-sextuplet"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="6:4"
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >6:4</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >سکستوله</span
+              >
+            </label>
+
+            <label
+              class="tuplet-radio-opt tuplet-opt-quintuplet"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="5:4"
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >5:4</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >پنتوله</span
+              >
+            </label>
+
+            <label
+              class="tuplet-radio-opt tuplet-opt-septuplet"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="7:6"
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >7:6</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >سپتوله</span
+              >
+            </label>
+
+            <label
+              class="tuplet-radio-opt tuplet-opt-quadruplet"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="4:3"
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >4:3</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >کوادروپله</span
+              >
+            </label>
+
+            <div
+              style="
+                border-top: 1px dashed var(--border, #c8d0d8);
+                margin: 3px 0;
+              "
+            ></div>
+
+            <label
+              class="tuplet-radio-opt tuplet-opt-half"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="2:1"
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >½</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >هالف</span
+              >
+            </label>
+
+            <label
+              class="tuplet-radio-opt tuplet-opt-remove"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 2px;
+                font-size: 11px;
+                cursor: pointer;
+                margin: 0;
+                width: 100%;
+                box-sizing: border-box;
+              "
+            >
+              <input
+                type="radio"
+                name="tuplet-type"
+                value="remove"
+                style="margin: 0; width: 12px; height: 12px; flex-shrink: 0"
+              />
+              <span
+                class="tuplet-radio-label"
+                style="font-weight: bold; min-width: unset; margin: 0"
+                >✕</span
+              >
+              <span
+                class="tuplet-radio-desc"
+                style="
+                  font-size: 10px;
+                  margin: 0;
+                  color: inherit;
+                  line-height: 1;
+                "
+                >حذف تیوپلت</span
               >
             </label>
           </div>
-        </div>
-        <div class="modal-btns" style="margin-top: 16px">
+        </fieldset>
+
+        <div
+          class="modal-btns"
+          style="
+            width: 100%;
+            display: flex;
+            gap: 4px;
+            margin: 0;
+            box-sizing: border-box;
+          "
+        >
           <button
             class="btn"
             onclick="
               document.getElementById('modal-triplet').classList.remove('show')
             "
+            style="
+              flex: 1;
+              padding: 4px 0;
+              font-size: 11px;
+              height: 28px;
+              margin: 0;
+              box-sizing: border-box;
+            "
           >
             انصراف
           </button>
-          <button class="btn accent-btn" onclick="app.confirmTriplet()">
+          <button
+            class="btn accent-btn"
+            onclick="app.confirmTriplet()"
+            style="
+              flex: 1;
+              padding: 4px 0;
+              font-size: 11px;
+              height: 28px;
+              margin: 0;
+              box-sizing: border-box;
+            "
+          >
             اعمال
           </button>
         </div>
       </div>
     </div>
-
     <!-- TEMPO MODAL (موبایل) -->
     <div class="modal-overlay" id="modal-tempo">
       <div class="modal">
@@ -433,8 +731,18 @@
     </div>
     <!-- ══════════════ ESHARAH MODAL ══════════════ -->
     <div class="modal-overlay" id="modal-esharah">
-      <div class="modal" style="width: 500px; max-width: 96%; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;">
-        <h3 style="flex-shrink:0;">👉 لیست اشاره‌ها</h3>
+      <div
+        class="modal"
+        style="
+          width: 500px;
+          max-width: 96%;
+          max-height: 90vh;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <h3 style="flex-shrink: 0">👉 لیست اشاره‌ها</h3>
         <div
           id="esharah-list"
           style="
@@ -472,10 +780,12 @@
             );
           </script>
         </div>
-        <div class="modal-btns" style="flex-shrink:0;">
+        <div class="modal-btns" style="flex-shrink: 0">
           <button
             class="btn"
-            onclick="document.getElementById('modal-esharah').classList.remove('show')"
+            onclick="
+              document.getElementById('modal-esharah').classList.remove('show')
+            "
             style="width: 100%"
           >
             برگشت

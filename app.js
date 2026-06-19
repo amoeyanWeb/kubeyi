@@ -3,11 +3,11 @@ const app = (() => {
   // STATE
   // ══════════════════════════════════════
 
-  const ESHARAH_TOTAL_DURATION = 50; // زمان کل اشاره به میلی‌ثانیه
+  const ESHARAH_TOTAL_DURATION = 100; // زمان کل اشاره به میلی‌ثانیه
 
   let state = {
     name: "",
-    meter: "4/4",
+    meter: "2/4",
     tempo: 120,
     cols: 8, // = numerator * 2
     rows: [], // array of arrays [cols]
@@ -236,8 +236,98 @@ const app = (() => {
     if (!menu.contains(e.target)) closeDynamicsMenu();
   });
 
+  // ══════════════════════════════════════
+  // CELL CONTEXT MENU (رایت‌کلیک روی خانه دارای تکنیک)
+  // ══════════════════════════════════════
+  let _cellCtxOpen = false;
+
+  function closeCellContextMenu() {
+    const menu = document.getElementById("cell-context-menu");
+    if (menu) menu.classList.remove("show");
+    _cellCtxOpen = false;
+  }
+
+  function openCellContextMenu(ri, ci, anchorEl) {
+    let menu = document.getElementById("cell-context-menu");
+    if (!menu) {
+      menu = document.createElement("div");
+      menu.id = "cell-context-menu";
+      document.body.appendChild(menu);
+    }
+
+    closeDynamicsMenu();
+    closeCellContextMenu();
+
+    _cellCtxOpen = true;
+    selectRow(ri);
+
+    const current = getCellDynamic(ri, ci);
+
+    // ساخت آیتم‌های dynamics
+    const dynOptionsHTML = DYNAMICS_MAIN.map(d =>
+      `<button class="rcm-item ccm-dyn-btn${current === d.key ? ' ccm-active' : ''}" style="color:var(${d.cssVar})" data-ri="${ri}" data-ci="${ci}" data-dyn="${d.key}">${d.key}</button>`
+    ).join('');
+
+    const shapeOptionsHTML = DYNAMICS_SHAPE.map(d =>
+      `<button class="rcm-item ccm-dyn-btn${current === d.key ? ' ccm-active' : ''}" style="color:var(${d.cssVar})" data-ri="${ri}" data-ci="${ci}" data-dyn="${d.key}">${d.key}</button>`
+    ).join('');
+
+    menu.innerHTML = `
+      <div class="rcm-header">میزان ${ri + 1} · تکنیک ${ci + 1}</div>
+      <div class="ccm-dyn-section">
+        <div class="ccm-dyn-label">نوانس</div>
+        <div class="ccm-dyn-row">${dynOptionsHTML}</div>
+        <div class="ccm-dyn-row">${shapeOptionsHTML}</div>
+        <button class="rcm-item ccm-dyn-btn ccm-reset${current === '' ? ' ccm-active' : ''}" data-ri="${ri}" data-ci="${ci}" data-dyn="">حالت عادی</button>
+      </div>
+      <div class="rcm-divider"></div>
+      <button class="rcm-item ccm-tuplet-btn">
+        <span class="rcm-icon">𝄾</span> گروه ریتمی (Tuplet)
+      </button>
+    `;
+
+    // attach dynamics click handlers
+    menu.querySelectorAll('.ccm-dyn-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const r = parseInt(btn.dataset.ri);
+        const c = parseInt(btn.dataset.ci);
+        setCellDynamic(r, c, btn.dataset.dyn);
+        closeCellContextMenu();
+      });
+    });
+
+    // attach tuplet click handler
+    menu.querySelector('.ccm-tuplet-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeCellContextMenu();
+      openTripletModal(ci);
+    });
+
+    menu.classList.add('show');
+
+    // موقعیت‌دهی هوشمند
+    const rect = anchorEl.getBoundingClientRect();
+    const menuW = 200;
+    const menuH = menu.scrollHeight || 280;
+    let left = rect.left;
+    if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+    if (left < 8) left = 8;
+    let top = rect.bottom + 4;
+    if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 4;
+    if (top < 8) top = 8;
+    menu.style.left = (window.scrollX + left) + 'px';
+    menu.style.top = (window.scrollY + top) + 'px';
+  }
+
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('cell-context-menu');
+    if (!menu || !menu.classList.contains('show')) return;
+    if (!menu.contains(e.target)) closeCellContextMenu();
+  });
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeDynamicsMenu();
+    if (e.key === "Escape") closeCellContextMenu();
   });
 
   // ══════════════════════════════════════
@@ -322,28 +412,39 @@ const app = (() => {
     return null;
   }
 
-  function openTripletModal() {
+  function openTripletModal(ci) {
     if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
-    document.getElementById("inp-tuplet-row").value =
-      state.selected >= 0 ? state.selected + 1 : "";
-    document.getElementById("inp-tuplet-col").value = "";
+
+    const modal = document.getElementById("modal-triplet");
+    if (!modal) return;
+
+    // ذخیره شماره میزان و شماره تکنیک در dataset مدال
+    const ri = state.selected >= 0 ? state.selected : 0;
+    modal.dataset.ri = ri;
+    modal.dataset.ci = (ci !== undefined && ci >= 0) ? ci : "";
+
     // پیش‌فرض اولین رادیو
     const radios = document.querySelectorAll('input[name="tuplet-type"]');
     if (radios.length) radios[0].checked = true;
-    document.getElementById("modal-triplet").classList.add("show");
-    setTimeout(() => document.getElementById("inp-tuplet-row").focus(), 100);
+
+    modal.classList.add("show");
   }
 
   function confirmTriplet() {
-    const ri = parseInt(document.getElementById("inp-tuplet-row").value) - 1;
-    const ci = parseInt(document.getElementById("inp-tuplet-col").value) - 1;
+    const modal = document.getElementById("modal-triplet");
+    if (!modal) return;
+
+    // خواندن شماره میزان و شماره تکنیک از dataset مدال
+    const ri = parseInt(modal.dataset.ri, 10);
+    const ci = parseInt(modal.dataset.ci, 10);
+
     const typeRadio = document.querySelector(
       'input[name="tuplet-type"]:checked',
     );
     if (!typeRadio) return toast("نوع را انتخاب کنید", true);
     const type = typeRadio.value;
 
-    document.getElementById("modal-triplet").classList.remove("show");
+    modal.classList.remove("show");
 
     // --- حذف تیوپلت ---
     if (type === "remove") {
@@ -351,14 +452,12 @@ const app = (() => {
         return toast("شماره میزان نامعتبر است", true);
       if (isNaN(ci) || ci < 0 || ci >= state.cols)
         return toast("شماره تکنیک نامعتبر است", true);
-      // پیدا کردن start واقعی tuplet در این ci یا هر ci‌ای که این ci درونش باشد
+
       let foundKey = null;
       if (state.triplets) {
-        // اول چک کن خودش start باشه
         if (state.triplets[ri + "-" + ci]) {
           foundKey = ri + "-" + ci;
         } else {
-          // بگرد ببین این ci درون کدام tuplet است
           for (const key of Object.keys(state.triplets)) {
             const [kri, kci] = key.split("-").map(Number);
             if (kri !== ri) continue;
@@ -401,10 +500,7 @@ const app = (() => {
       slots: def.slots,
     };
 
-    // مقداردهی اولیه slot‌های اضافی در tripletData
     if (!state.tripletData) state.tripletData = {};
-    // slot‌های 0..baseCols-1 از row گرفته می‌شن، slot‌های بعدی از tripletData
-    // هر slot اضافی (index >= baseCols) باید در tripletData باشد
     for (let s = def.baseCols; s < def.slots; s++) {
       const key = `${ri}-${ci}-${s}`;
       if (!state.tripletData[key]) state.tripletData[key] = "";
@@ -416,7 +512,6 @@ const app = (() => {
       `${def.desc} در میزان ${ri + 1}، تکنیک ${ci + 1}–${ci + def.baseCols} اعمال شد ✓`,
     );
   }
-
   function removeTriplet(ri, startCi) {
     if (!state.triplets) return;
     const t = state.triplets[ri + "-" + startCi];
@@ -775,6 +870,53 @@ const app = (() => {
     input.click();
   }
 
+  // بارگذاری خودکار سمپل‌ها هنگام باز کردن فایل — دقیقاً مثل loadSounds
+  async function autoLoadSoundsForFile(neededNames) {
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "audio/wav,.wav";
+    input.multiple = true;
+    if (!isMobile && "webkitdirectory" in input) {
+      input.webkitdirectory = true;
+    }
+
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files).filter((f) =>
+        f.name.toLowerCase().endsWith(".wav"),
+      );
+      if (files.length === 0) return toast("هیچ فایل WAV پیدا نشد", true);
+
+      toast("در حال لود " + files.length + " فایل...");
+      const ctx = getAudioCtx();
+      let loaded = 0;
+
+      for (const file of files) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+          sounds[file.name] = audioBuffer;
+          loaded++;
+        } catch (err) {
+          console.warn("خطا در لود " + file.name, err);
+        }
+      }
+
+      updateSoundBadge();
+      const notFound = neededNames.filter((n) => !sounds[n]);
+      if (notFound.length === 0) {
+        toast(`همه ${neededNames.length} سمپل با موفقیت لود شدند ✓`);
+      } else {
+        toast(
+          `${loaded} فایل لود شد — ${notFound.length} سمپل هنوز پیدا نشد`,
+          true,
+        );
+      }
+    };
+
+    input.click();
+  }
+
   // ══════════════════════════════════════
   // VIEW SOUNDS
   // ══════════════════════════════════════
@@ -915,7 +1057,11 @@ const app = (() => {
       const numEl = document.createElement("div");
       numEl.className = "row-num" + (ri === selected ? " selected" : "");
       numEl.textContent = ri + 1;
-      numEl.addEventListener("click", () => selectRow(ri));
+      numEl.title = "کلیک برای منوی عملیات";
+      numEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openRowMenu(ri, numEl);
+      });
       rowEl.appendChild(numEl);
 
       // cells
@@ -956,11 +1102,7 @@ const app = (() => {
           if (!inp.value.trim()) return;
           e.preventDefault();
           e.stopPropagation();
-          if (dynMenuState.ri === ri && dynMenuState.ci === ci) {
-            closeDynamicsMenu();
-          } else {
-            openDynamicsMenu(ri, ci, inp);
-          }
+          openCellContextMenu(ri, ci, inp);
         });
 
         // long press for mobile (replaces right-click)
@@ -974,11 +1116,7 @@ const app = (() => {
               if (!inp.value.trim()) return;
               longPressFired = true;
               e.preventDefault();
-              if (dynMenuState.ri === ri && dynMenuState.ci === ci) {
-                closeDynamicsMenu();
-              } else {
-                openDynamicsMenu(ri, ci, inp);
-              }
+              openCellContextMenu(ri, ci, inp);
             }, 500);
           },
           { passive: true },
@@ -990,22 +1128,16 @@ const app = (() => {
           clearTimeout(longPressTimer);
         });
 
-        // در موبایل: تپ ساده روی خانه‌ای که متن دارد، هم امکان ویرایش متن
-        // (فوکوس و کیبورد) را حفظ می‌کند و هم منوی دینامیک را باز/بسته می‌کند
+        // در موبایل: تپ ساده روی خانه‌ای که متن دارد
         inp.addEventListener("click", (e) => {
           if (longPressFired) {
-            // قبلاً با long-press باز/بسته شد، دوباره toggle نشود
             longPressFired = false;
             return;
           }
           if (!isMobile) return;
           if (!inp.value.trim()) return;
           e.stopPropagation();
-          if (dynMenuState.ri === ri && dynMenuState.ci === ci) {
-            closeDynamicsMenu();
-          } else {
-            openDynamicsMenu(ri, ci, inp);
-          }
+          openCellContextMenu(ri, ci, inp);
         });
 
         inp.addEventListener("input", (e) => {
@@ -1082,6 +1214,94 @@ const app = (() => {
     document.getElementById("sel-indicator").textContent = `میزان: ${ri + 1}`;
   }
 
+  // ══════════════════════════════════════
+  // ROW CONTEXT MENU (منوی شناور روی شماره میزان)
+  // ══════════════════════════════════════
+  let _rcmOpen = false;
+
+  function closeRowMenu() {
+    const menu = document.getElementById("row-context-menu");
+    if (menu) menu.classList.remove("show");
+    _rcmOpen = false;
+  }
+
+  function openRowMenu(ri, anchorEl) {
+    const menu = document.getElementById("row-context-menu");
+    if (!menu) return;
+
+    // اگر همین منو برای همین میزان بازه، ببند
+    if (_rcmOpen && state.selected === ri) {
+      closeRowMenu();
+      return;
+    }
+
+    selectRow(ri);
+    _rcmOpen = true;
+
+    const hasClip = !!state.clipboard;
+
+    menu.innerHTML = `
+      <div class="rcm-row">
+        <button class="rcm-btn" onclick="app.insertRow(); closeRowContextMenu()" title="درج قبل از این">⊕ قبل</button>
+        <button class="rcm-btn" onclick="app.insertRowAfter(); closeRowContextMenu()" title="افزودن بعد از این">↓ بعد</button>
+      </div>
+      <div class="rcm-divider"></div>
+      <div class="rcm-row">
+        <button class="rcm-btn" onclick="app.copyRow(); closeRowContextMenu()" title="کپی">⎘ کپی</button>
+        <button class="rcm-btn${hasClip ? "" : " disabled"}" style="${hasClip ? "" : "opacity:0.4;cursor:not-allowed"}" onclick="${hasClip ? "app.pasteRow(); closeRowContextMenu()" : ""}" title="پیست (جدید)">⎗ جدید</button>
+        <button class="rcm-btn${hasClip ? "" : " disabled"}" style="${hasClip ? "" : "opacity:0.4;cursor:not-allowed"}" onclick="${hasClip ? "app.pasteRowReplace(); closeRowContextMenu()" : ""}" title="پیست (جایگزین)">⇄ جایگزین</button>
+      </div>
+      <div class="rcm-divider"></div>
+      <div class="rcm-row">
+        <button class="rcm-btn danger" onclick="app.deleteRow(); closeRowContextMenu()" title="پاک کردن محتوا">⌫ پاک</button>
+        <button class="rcm-btn danger" onclick="app.removeRow(); closeRowContextMenu()" title="حذف میزان">✕ حذف</button>
+      </div>
+      <div class="rcm-divider"></div>
+      <div class="rcm-row">
+        <button class="rcm-btn play-from-rcm" onclick="app.playFromSelected(); closeRowContextMenu()" title="پخش از اینجا">▶| از اینجا</button>
+        <button class="rcm-btn play-only-rcm" onclick="app.playOnlySelected(); closeRowContextMenu()" title="پخش فقط این">▶‖ فقط این</button>
+      </div>
+    `;
+
+    menu.classList.add("show");
+
+    // موقعیت‌دهی با fixed — همیشه داخل viewport می‌ماند
+    const rect = anchorEl.getBoundingClientRect();
+    const menuW = 180;
+    const menuH = menu.scrollHeight || 320;
+
+    let left = rect.right + 6;
+    if (left + menuW > window.innerWidth - 8) {
+      left = rect.left - menuW - 6;
+    }
+    if (left < 8) left = 8;
+
+    let top = rect.top;
+    if (top + menuH > window.innerHeight - 8) {
+      top = window.innerHeight - menuH - 8;
+    }
+    if (top < 8) top = 8;
+
+    menu.style.position = "fixed";
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
+  }
+
+  // expose برای onclick داخل innerHTML
+  window.closeRowContextMenu = closeRowMenu;
+
+  document.addEventListener("click", (e) => {
+    const menu = document.getElementById("row-context-menu");
+    if (!menu || !menu.classList.contains("show")) return;
+    if (!menu.contains(e.target) && !e.target.classList.contains("row-num")) {
+      closeRowMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeRowMenu();
+  });
+
   function updateStatus() {
     const filled = state.rows.reduce(
       (acc, row) => acc + row.filter((v) => v).length,
@@ -1100,9 +1320,9 @@ const app = (() => {
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10);
     document.getElementById("inp-name").value = "";
-    document.getElementById("inp-tempo").value = 120;
-    document.getElementById("inp-meter").value = "4/4";
-    document.getElementById("inp-initrows").value = 16;
+    document.getElementById("inp-tempo").value = 85;
+    document.getElementById("inp-meter").value = "2/4";
+    document.getElementById("inp-initrows").value = 2;
     document.getElementById("inp-savename") &&
       (document.getElementById("inp-savename").value = `Untitled_${dateStr}`);
     document.getElementById("modal-new").classList.add("show");
@@ -1173,6 +1393,17 @@ const app = (() => {
     const gridArea = document.getElementById("grid-area");
     if (gridArea) gridArea.scrollTop = gridArea.scrollHeight;
     toast("میزان " + (newIdx + 1) + " به انتها اضافه شد");
+  }
+
+  function insertRowAfter() {
+    if (state.rows.length === 0) return toast("ابتدا یک قطعه ایجاد کنید", true);
+    const idx = (state.selected >= 0 ? state.selected : state.rows.length - 1) + 1;
+    state.rows.splice(idx, 0, Array(state.cols).fill(""));
+    state.dynamics.splice(idx, 0, Array(state.cols).fill(""));
+    markDirty();
+    render();
+    selectRow(idx);
+    toast("میزان " + (idx + 1) + " بعد از میزان " + idx + " درج شد");
   }
 
   function deleteRow() {
@@ -1286,7 +1517,106 @@ const app = (() => {
       Object.keys(state.esharahSettings || {}).length > 0
         ? "\nESHARAH_SETTINGS:" + JSON.stringify(state.esharahSettings)
         : "";
-    return header + body + tripletPart + tripletDataPart + tupletDynPart + esharahPart;
+    // ذخیره داده صوتی سمپل‌ها به صورت base64 درون فایل
+    // (نام فایل‌ها برای سازگاری با فایل‌های قدیمی هم نگه داشته می‌شود)
+    const soundNames = Object.keys(sounds);
+    const soundsPart =
+      soundNames.length > 0
+        ? "\nLOADED_SOUNDS:" + JSON.stringify(soundNames)
+        : "";
+    // داده صوتی واقعی — به صورت آسنک نمی‌توان در serialize معمولی انجام داد
+    // بنابراین serialize فقط metadata می‌سازد؛ برای ذخیره با صدا از saveFileWithSounds استفاده کنید
+    return (
+      header +
+      body +
+      tripletPart +
+      tripletDataPart +
+      tupletDynPart +
+      esharahPart +
+      soundsPart
+    );
+  }
+
+  // تبدیل AudioBuffer به base64 WAV
+  function audioBufferToBase64(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const numSamples = buffer.length;
+    const bytesPerSample = 2;
+    const dataSize = numSamples * numChannels * bytesPerSample;
+    const arrayBuffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(arrayBuffer);
+    const writeStr = (off, s) => {
+      for (let i = 0; i < s.length; i++)
+        view.setUint8(off + i, s.charCodeAt(i));
+    };
+    const writeUint32 = (off, v) => view.setUint32(off, v, true);
+    const writeUint16 = (off, v) => view.setUint16(off, v, true);
+    const writeInt16 = (off, v) => view.setInt16(off, v, true);
+    writeStr(0, "RIFF");
+    writeUint32(4, 36 + dataSize);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    writeUint32(16, 16);
+    writeUint16(20, 1);
+    writeUint16(22, numChannels);
+    writeUint32(24, sampleRate);
+    writeUint32(28, sampleRate * numChannels * bytesPerSample);
+    writeUint16(32, numChannels * bytesPerSample);
+    writeUint16(34, bytesPerSample * 8);
+    writeStr(36, "data");
+    writeUint32(40, dataSize);
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const s = buffer.getChannelData(ch)[i];
+        const c = Math.max(-1, Math.min(1, s));
+        writeInt16(offset, c < 0 ? c * 0x8000 : c * 0x7fff);
+        offset += 2;
+      }
+    }
+    // تبدیل به base64
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++)
+      binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  // ذخیره فایل همراه با داده صوتی (آسنک) — سمپل‌ها به صورت base64 داخل فایل
+  async function saveFileWithSounds() {
+    if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+    let txt = serialize();
+    const soundNames = Object.keys(sounds);
+    if (soundNames.length > 0) {
+      toast(`در حال آماده‌سازی فایل (${soundNames.length} سمپل)...`);
+      const soundData = {};
+      for (const name of soundNames) {
+        try {
+          soundData[name] = audioBufferToBase64(sounds[name]);
+        } catch (e) {
+          console.warn("خطا در encode سمپل " + name, e);
+        }
+      }
+      // حذف LOADED_SOUNDS قدیمی و جایگزینی با SOUND_DATA کامل
+      txt = txt.replace(/\nLOADED_SOUNDS:[^\n]*/, "");
+      txt += "\nSOUND_DATA:" + JSON.stringify(soundData);
+    }
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (state.filename || state.name) + ".txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    state.dirty = false;
+    updateStatus();
+    persistAutosave();
+    const soundCount = soundNames.length;
+    toast(
+      soundCount > 0
+        ? `فایل با ${soundCount} سمپل ذخیره شد ✓`
+        : "فایل ذخیره شد ✓",
+    );
   }
 
   function deserialize(text) {
@@ -1301,6 +1631,8 @@ const app = (() => {
     let tripletData = {};
     let tupletDynamics = {};
     let esharahSettings = {};
+    let loadedSoundNames = [];
+    let soundDataMap = {}; // { filename: base64wav }
     let dataLines = lines.slice(2);
     // جدا کردن بخش تریوله از انتهای فایل
     dataLines = dataLines.filter((l) => {
@@ -1325,6 +1657,18 @@ const app = (() => {
       if (l.startsWith("ESHARAH_SETTINGS:")) {
         try {
           esharahSettings = JSON.parse(l.slice(17));
+        } catch (e) {}
+        return false;
+      }
+      if (l.startsWith("LOADED_SOUNDS:")) {
+        try {
+          loadedSoundNames = JSON.parse(l.slice(14));
+        } catch (e) {}
+        return false;
+      }
+      if (l.startsWith("SOUND_DATA:")) {
+        try {
+          soundDataMap = JSON.parse(l.slice(11));
         } catch (e) {}
         return false;
       }
@@ -1360,6 +1704,8 @@ const app = (() => {
       tripletData,
       tupletDynamics,
       esharahSettings,
+      loadedSoundNames,
+      soundDataMap,
     };
   }
 
@@ -1390,18 +1736,54 @@ const app = (() => {
     if (!fname) return;
     state.filename = fname;
     document.getElementById("modal-saveas").classList.remove("show");
-    saveFile();
+    saveFileWithSounds();
   }
 
   function openFile() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".txt";
-    input.onchange = (e) => {
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+    // input برای فایل txt
+    const txtInput = document.createElement("input");
+    txtInput.type = "file";
+    txtInput.accept = ".txt";
+
+    // input برای سمپل‌ها — از همین user gesture آماده می‌شود
+    const wavInput = document.createElement("input");
+    wavInput.type = "file";
+    wavInput.accept = "audio/wav,.wav";
+    wavInput.multiple = true;
+    if (!isMobile && "webkitdirectory" in wavInput) {
+      wavInput.webkitdirectory = true;
+    }
+
+    // وقتی کاربر سمپل‌ها را انتخاب کرد، لود کن
+    wavInput.onchange = async (e) => {
+      const files = Array.from(e.target.files).filter((f) =>
+        f.name.toLowerCase().endsWith(".wav"),
+      );
+      if (files.length === 0) return;
+      toast("در حال لود " + files.length + " سمپل...");
+      const ctx = getAudioCtx();
+      let loaded = 0;
+      for (const f of files) {
+        try {
+          const ab = await f.arrayBuffer();
+          const buf = await ctx.decodeAudioData(ab);
+          sounds[f.name] = buf;
+          loaded++;
+        } catch (err) {
+          console.warn("خطا در لود " + f.name, err);
+        }
+      }
+      updateSoundBadge();
+      toast(loaded + " سمپل بارگذاری شد ✓");
+    };
+
+    txtInput.onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         try {
           const parsed = deserialize(ev.target.result);
           state = {
@@ -1416,13 +1798,49 @@ const app = (() => {
           render();
           persistAutosave();
           toast(`"${state.name}" باز شد`);
+
+          // اگر فایل حاوی داده صوتی base64 است، مستقیم decode کن (نیازی به لود مجدد نیست)
+          const soundDataMap = parsed.soundDataMap || {};
+          if (Object.keys(soundDataMap).length > 0) {
+            toast("در حال بارگذاری سمپل‌های داخل فایل...");
+            const ctx = getAudioCtx();
+            let loaded = 0;
+            for (const [name, b64] of Object.entries(soundDataMap)) {
+              try {
+                // base64 → ArrayBuffer
+                const binary = atob(b64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++)
+                  bytes[i] = binary.charCodeAt(i);
+                const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
+                sounds[name] = audioBuffer;
+                loaded++;
+              } catch (err) {
+                console.warn("خطا در decode سمپل " + name, err);
+              }
+            }
+            updateSoundBadge();
+            toast(`${loaded} سمپل از فایل بارگذاری شد ✓`);
+            return; // نیازی به لود خارجی نیست
+          }
+
+          // اگر SOUND_DATA نداشت، سمپل‌های خارجی را بخواه
+          const neededSounds = parsed.loadedSoundNames || [];
+          if (neededSounds.length > 0) {
+            const missing = neededSounds.filter((n) => !sounds[n]);
+            if (missing.length > 0) {
+              const dirName = parsed.samplesDirName || "";
+              autoLoadSoundsForFile(neededSounds, dirName);
+            }
+          }
         } catch (err) {
           toast("خطا در باز کردن فایل: " + err.message, true);
         }
       };
       reader.readAsText(file);
     };
-    input.click();
+
+    txtInput.click();
   }
 
   // ══════════════════════════════════════
@@ -1446,7 +1864,7 @@ const app = (() => {
     if (e.ctrlKey || e.metaKey) {
       if (e.key === "s") {
         e.preventDefault();
-        saveFile();
+        saveFileWithSounds();
       } else if (e.key === "n") {
         e.preventDefault();
         newFile();
@@ -1676,27 +2094,29 @@ const app = (() => {
       }
 
       if (esharahConfig) {
-        // ۱. اضافه کردن تکنیک اول اشاره (زمان: زمان نت اصلی منهای کل زمان اشاره)
+        // ۱. اضافه کردن تکنیک اول اشاره
+        // زمان نسبی — ممکن است منفی باشد (برای اولین نت یا اول لوپ)
+        // scheduleOnce این را با totalDur قبلی جبران می‌کند
         if (esharahConfig.sel1) {
-          const t1 = Math.max(0, ev.startSec - totalEsharahSec);
           finalEvents.push({
             symbol: esharahConfig.sel1,
             row: ev.row,
-            startSec: t1,
+            startSec: ev.startSec - totalEsharahSec, // می‌تواند منفی باشد
             durationSec: singleTechSec,
-            dynamic: ev.dynamic,
+            dynamic: "p",
+            isEsharah: true,
           });
         }
 
-        // ۲. اضافه کردن تکنیک دوم اشاره (زمان: زمان نت اصلی منهای نصف زمان اشاره)
+        // ۲. اضافه کردن تکنیک دوم اشاره
         if (esharahConfig.sel2 && esharahConfig.sel2 !== "") {
-          const t2 = Math.max(0, ev.startSec - singleTechSec);
           finalEvents.push({
             symbol: esharahConfig.sel2,
             row: ev.row,
-            startSec: t2,
+            startSec: ev.startSec - singleTechSec, // می‌تواند منفی باشد
             durationSec: singleTechSec,
-            dynamic: ev.dynamic,
+            dynamic: "p",
+            isEsharah: true,
           });
         }
       }
@@ -1713,10 +2133,11 @@ const app = (() => {
   // اعمال حجم بر اساس نوانس (ff..pp) یا شکل قوسی (< > <>) روی یک gainNode
   // absStart: زمان مطلق شروع نت در AudioContext/OfflineAudioContext
   // bufDur: طول کامل فایل صوتی منبع
-  function applyNoteGain(gainNode, ev, absStart, bufDur) {
+  // ctx: AudioContext (یا OfflineAudioContext) — برای گرفتن currentTime
+  function applyNoteGain(gainNode, ev, absStart, bufDur, ctx) {
     const dyn = ev.dynamic || "";
     const playDur = ev.durationSec;
-    const trim = bufDur > playDur; // باید زودتر از پایان فایل صدا قطع شود
+    const trim = bufDur > playDur;
     const span = trim ? playDur : bufDur;
     const fadeOutDur = trim
       ? Math.min(0.08, playDur * 0.2)
@@ -1724,37 +2145,161 @@ const app = (() => {
     const shapeSpan = Math.max(0.001, span - fadeOutDur);
     const fadeEndVal = trim ? 0 : 0.001;
 
-    // مقدار اولیه gainNode به‌صورت پیش‌فرض 1.0 است.
-    // برای جلوگیری از ramp ناخواسته از 1.0 به مقدار اول،
-    // ابتدا زمان‌بندی‌ها را لغو کرده و مقدار را از زمان 0 صریحاً ست می‌کنیم.
-    gainNode.gain.cancelScheduledValues(0);
+    // 1. پاک کردن زمان‌بندی‌های قبلی از لحظه شروع همین نت
+    gainNode.gain.cancelScheduledValues(absStart);
+
+    // 2. تنظیم ولوم روی صفر دقیقاً در لحظه شروع نت (به جای currentTime مرورگر)
+    gainNode.gain.setValueAtTime(0, absStart);
 
     if (isShapeDynamic(dyn)) {
       const peak = DYNAMIC_GAIN.mf;
       const lo = peak * SHAPE_LOW_RATIO;
       if (dyn === "<") {
-        // کرشندو: شروع ساکت، اوج در پایان بخش اصلی نت
-        gainNode.gain.setValueAtTime(lo, 0);
         gainNode.gain.setValueAtTime(lo, absStart);
         gainNode.gain.linearRampToValueAtTime(peak, absStart + shapeSpan);
       } else if (dyn === ">") {
-        // دیکرشندو: شروع بلند، ساکت‌شدن تا پایان بخش اصلی نت
-        gainNode.gain.setValueAtTime(peak, 0);
         gainNode.gain.setValueAtTime(peak, absStart);
         gainNode.gain.linearRampToValueAtTime(lo, absStart + shapeSpan);
       } else {
-        // قوسی (<>): ساکت → اوج در میانه → ساکت
-        gainNode.gain.setValueAtTime(lo, 0);
         gainNode.gain.setValueAtTime(lo, absStart);
         gainNode.gain.linearRampToValueAtTime(peak, absStart + shapeSpan / 2);
         gainNode.gain.linearRampToValueAtTime(lo, absStart + shapeSpan);
       }
     } else {
-      const g = DYNAMIC_GAIN[dyn] ?? DYNAMIC_GAIN.mf;
-      gainNode.gain.setValueAtTime(g, 0);
-      gainNode.gain.setValueAtTime(g, absStart);
+      // نوانس‌های عادی (ff, f, mf, p, pp)
+      const volume = DYNAMIC_GAIN[dyn] !== undefined ? DYNAMIC_GAIN[dyn] : 0.75;
+      // ولوم نت را در زمان شروع خودش به مقدار واقعی می‌رسانیم
+      gainNode.gain.setValueAtTime(volume, absStart);
     }
+
+    // اعمال فید اوت (Fade out) در انتهای نت برای جلوگیری از صدای تق‌تق یا دیستورت
+    gainNode.gain.setValueAtTime(gainNode.gain.value, absStart + shapeSpan);
     gainNode.gain.linearRampToValueAtTime(fadeEndVal, absStart + span);
+  }
+  // پخش از یک میزان خاص تا آخر (onlyOne=false) یا فقط همان میزان (onlyOne=true)
+  function schedulePlaybackFrom(startRow, onlyOne) {
+    const ctx = getAudioCtx();
+    const { events, totalDur } = buildTimeline();
+    if (totalDur === 0) {
+      toast("گریدی وجود ندارد", true);
+      return;
+    }
+
+    // محاسبه زمان شروع و پایان میزان انتخاب‌شده
+    const { cols, tempo, meter } = state;
+    const den = parseInt(meter.split("/")[1] || "4");
+    const subdivsPerBeat = den <= 4 ? 4 : 2;
+    const cellDur = 60 / tempo / subdivsPerBeat;
+    const rowDur = cols * cellDur;
+
+    const fromSec = startRow * rowDur;
+    const toSec = onlyOne ? fromSec + rowDur : totalDur;
+    const playDur = toSec - fromSec;
+
+    // فیلتر رویدادها:
+    // رویدادهای اشاره (isEsharah) ممکن است startSec منفی داشته باشند —
+    // آن‌ها را بر اساس row میزان اصلی‌شان فیلتر می‌کنیم
+    const filteredEvents = events.filter((ev) => {
+      if (ev.isEsharah) {
+        // اشاره را فقط اگر row اصلی‌اش در بازه باشد نگه می‌داریم
+        return ev.row >= startRow && (onlyOne ? ev.row === startRow : true);
+      }
+      // رویداد معمولی: startSec باید در بازه [fromSec, toSec) باشد
+      return ev.startSec >= fromSec - 0.0001 && ev.startSec < toSec - 0.0001;
+    });
+
+    playState.playing = true;
+    playState.loop = false;
+    playState.longLoop = false;
+    playState.startTime = ctx.currentTime;
+    playState.totalDur = playDur;
+    playState.scheduledNodes = [];
+
+    filteredEvents.forEach((ev) => {
+      const buf = resolveSound(ev.symbol);
+      if (!buf) return;
+
+      // زمان نسبی رویداد نسبت به fromSec
+      // برای اشاره‌هایی که startSec واقعی‌شان قبل از fromSec است،
+      // آن‌ها را از ابتدای پخش می‌گذاریم (زمان ۰)
+      const relStart = Math.max(0, ev.startSec - fromSec);
+      const absStart = ctx.currentTime + relStart;
+
+      const src = ctx.createBufferSource();
+      const gainNode = ctx.createGain();
+      const noteDur = ev.durationSec;
+      const bufDur = buf.duration;
+
+      applyNoteGain(gainNode, ev, absStart, bufDur, ctx);
+      src.buffer = buf;
+      src.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      src.start(absStart);
+      if (bufDur > noteDur) {
+        src.stop(absStart + noteDur + 0.01);
+      }
+      playState.scheduledNodes.push(src);
+    });
+
+    startProgressUIFrom(playDur, fromSec);
+    setTimeout(() => stopPlayback(), playDur * 1000 + 150);
+    updatePlayFromButtons(onlyOne);
+  }
+
+  function startProgressUIFrom(totalDurSec, rowOffsetSec) {
+    const startTime = audioCtx.currentTime;
+
+    function tick() {
+      if (!playState.playing) return;
+      const elapsed = audioCtx.currentTime - startTime;
+      const pos = Math.min(elapsed, totalDurSec);
+      const pct = (pos / totalDurSec) * 100;
+      document.getElementById("play-progress").style.width = pct + "%";
+
+      const secs = Math.floor(pos);
+      const ms = Math.floor((pos - secs) * 10);
+      document.getElementById("play-time").textContent =
+        Math.floor(secs / 60) +
+        ":" +
+        String(secs % 60).padStart(2, "0") +
+        "." +
+        ms;
+
+      // هایلایت ردیف در حال پخش
+      const { cols, tempo, meter } = state;
+      const den = parseInt(meter.split("/")[1] || "4");
+      const subdivsPerBeat = den <= 4 ? 4 : 2;
+      const cellDur = 60 / tempo / subdivsPerBeat;
+      const rowDur = cols * cellDur;
+      const currentRow = Math.floor((rowOffsetSec + pos) / rowDur);
+      document.querySelectorAll(".grid-row").forEach((el, i) => {
+        el.classList.toggle("playing-row", i === currentRow);
+      });
+
+      playState.rafId = requestAnimationFrame(tick);
+    }
+    playState.rafId = requestAnimationFrame(tick);
+  }
+
+  function updatePlayFromButtons(onlyOne) {
+    const fromBtn = document.getElementById("btn-play-from");
+    const onlyBtn = document.getElementById("btn-play-only");
+    if (!fromBtn || !onlyBtn) return;
+
+    if (playState.playing && !onlyOne) {
+      fromBtn.textContent = "⏸ Play from";
+      fromBtn.classList.add("playing");
+    } else {
+      fromBtn.textContent = "▶| Play from";
+      fromBtn.classList.remove("playing");
+    }
+    if (playState.playing && onlyOne) {
+      onlyBtn.textContent = "⏸ Play only";
+      onlyBtn.classList.add("playing");
+    } else {
+      onlyBtn.textContent = "▶‖ Play only";
+      onlyBtn.classList.remove("playing");
+    }
   }
 
   function schedulePlayback(loop) {
@@ -1771,20 +2316,34 @@ const app = (() => {
     playState.totalDur = totalDur;
     playState.scheduledNodes = [];
 
-    function scheduleOnce(offset) {
+    function scheduleOnce(offset, prevOffset) {
       events.forEach((ev) => {
         const buf = resolveSound(ev.symbol);
         if (!buf) return;
 
+        let absStart;
+        if (ev.isEsharah && ev.startSec < 0) {
+          // اشاره‌ای که زمانش منفی است باید از انتهای لوپ قبلی پخش شود
+          if (prevOffset === undefined) {
+            // اولین پخش — اشاره‌ی منفی را از همان offset می‌گذاریم
+            // (در بدترین حالت با نت اصلی همزمان می‌شود، که بهتر از نپخشیدن است)
+            absStart = offset + Math.max(0, ev.startSec);
+          } else {
+            absStart = prevOffset + totalDur + ev.startSec;
+          }
+        } else {
+          absStart = offset + ev.startSec;
+        }
+
+        // اگر زمان پخش گذشته، رد کن
+        if (absStart < ctx.currentTime - 0.01) return;
+
         const src = ctx.createBufferSource();
         const gainNode = ctx.createGain();
-
-        // trim buffer if needed (for tremolo / long sounds)
         const playDur = ev.durationSec;
         const bufDur = buf.duration;
-        const absStart = offset + ev.startSec;
 
-        applyNoteGain(gainNode, ev, absStart, bufDur);
+        applyNoteGain(gainNode, ev, absStart, bufDur, ctx);
         src.buffer = buf;
         src.connect(gainNode);
         gainNode.connect(ctx.destination);
@@ -1797,10 +2356,11 @@ const app = (() => {
       });
     }
 
-    scheduleOnce(ctx.currentTime);
+    scheduleOnce(ctx.currentTime, undefined);
 
     // if loop, schedule next repetition slightly before end
     if (loop) {
+      let lastScheduledOffset = ctx.currentTime;
       function scheduleLoop() {
         if (!playState.playing || !playState.loop) return;
         const elapsed = ctx.currentTime - playState.startTime;
@@ -1821,7 +2381,9 @@ const app = (() => {
         }
         // schedule 0.3s ahead
         if (nextStart - ctx.currentTime < 0.5) {
-          scheduleOnce(nextStart);
+          const prevOff = nextStart - totalDur;
+          scheduleOnce(nextStart, prevOff);
+          lastScheduledOffset = nextStart;
         }
         setTimeout(scheduleLoop, 150);
       }
@@ -1856,6 +2418,8 @@ const app = (() => {
       .querySelectorAll(".grid-row.playing-row")
       .forEach((r) => r.classList.remove("playing-row"));
     updatePlayButtons();
+    updatePlayFromButtons(false);
+    updatePlayFromButtons(true);
   }
 
   function startProgressUI(totalDur, loop) {
@@ -1939,6 +2503,26 @@ const app = (() => {
     schedulePlayback(true);
   }
 
+  function playFromSelected() {
+    if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+    if (state.selected < 0) return toast("ابتدا یک میزان انتخاب کنید", true);
+    if (playState.playing) {
+      stopPlayback();
+      return;
+    }
+    schedulePlaybackFrom(state.selected, false);
+  }
+
+  function playOnlySelected() {
+    if (!state.name) return toast("ابتدا یک قطعه ایجاد کنید", true);
+    if (state.selected < 0) return toast("ابتدا یک میزان انتخاب کنید", true);
+    if (playState.playing) {
+      stopPlayback();
+      return;
+    }
+    schedulePlaybackFrom(state.selected, true);
+  }
+
   // امضایی از وضعیت فعلی قطعه (برای تشخیص اینکه فایل طولانیِ کش‌شده هنوز معتبر است یا نه)
   function getTimelineSignature() {
     return JSON.stringify({
@@ -1976,7 +2560,7 @@ const app = (() => {
         const playDur = ev.durationSec;
         const bufDur = buf.duration;
 
-        applyNoteGain(gainNode, ev, absStart, bufDur);
+        applyNoteGain(gainNode, ev, absStart, bufDur, offline);
         src.connect(gainNode);
         gainNode.connect(offline.destination);
         src.start(absStart);
@@ -2167,7 +2751,7 @@ const app = (() => {
         const playDur = ev.durationSec;
         const bufDur = buf.duration;
 
-        applyNoteGain(gainNode, ev, ev.startSec, bufDur);
+        applyNoteGain(gainNode, ev, ev.startSec, bufDur, offline);
         src.connect(gainNode);
         gainNode.connect(offline.destination);
         src.start(ev.startSec);
@@ -2337,7 +2921,9 @@ const app = (() => {
     // بازنمایی preview برای اشاره‌هایی که قبلاً set شده‌اند
     const rows = document.querySelectorAll("#esharah-list .esharah-row");
     rows.forEach((rowEl) => {
-      const sym = rowEl.querySelector("span[style*='monospace']")?.textContent?.trim();
+      const sym = rowEl
+        .querySelector("span[style*='monospace']")
+        ?.textContent?.trim();
       if (!sym) return;
       const cfg = state.esharahSettings && state.esharahSettings[sym];
 
@@ -2346,7 +2932,8 @@ const app = (() => {
         const sel1El = rowEl.querySelector(".esharah-sel-1");
         const sel2El = rowEl.querySelector(".esharah-sel-2");
         if (sel1El && sampleNames.includes(cfg.sel1)) sel1El.value = cfg.sel1;
-        if (sel2El && cfg.sel2 && sampleNames.includes(cfg.sel2)) sel2El.value = cfg.sel2;
+        if (sel2El && cfg.sel2 && sampleNames.includes(cfg.sel2))
+          sel2El.value = cfg.sel2;
 
         // نمایش preview
         const previewEl = rowEl.querySelector(".esharah-preview");
@@ -2407,46 +2994,81 @@ const app = (() => {
     if (!cfg || !cfg.sel1) return toast("اشاره‌ای تنظیم نشده", true);
 
     const ctx = getAudioCtx();
-    const now = ctx.currentTime + 0.05;
-    const stepSec = ESHARAH_TOTAL_DURATION / 1000 / (cfg.sel2 ? 2 : 1);
+    // زمان‌بندی دقیقاً مثل buildTimeline:
+    // totalEsharahSec = کل زمان اشاره، singleTechSec = نصف آن
+    const totalEsharahSec = ESHARAH_TOTAL_DURATION / 1000;
+    const singleTechSec = totalEsharahSec / 2;
 
-    // پخش sel1
+    // نت اصلی (dummy) را در زمان totalEsharahSec بعد از شروع قرار می‌دهیم
+    // تا اشاره‌ها بتوانند قبل از آن پخش شوند
+    const baseTime = ctx.currentTime + 0.05 + totalEsharahSec;
+
+    // sel1: totalEsharahSec قبل از نت اصلی
     const buf1 = resolveSound(cfg.sel1);
     if (buf1) {
       const src1 = ctx.createBufferSource();
       src1.buffer = buf1;
       src1.connect(ctx.destination);
-      src1.start(now);
+      src1.start(baseTime - totalEsharahSec); // = ctx.currentTime + 0.05
     }
 
-    // پخش sel2 بعد از stepSec (اگر وجود دارد)
-    if (cfg.sel2) {
+    if (cfg.sel2 && cfg.sel2 !== "") {
+      // sel2: singleTechSec قبل از نت اصلی
       const buf2 = resolveSound(cfg.sel2);
       if (buf2) {
         const src2 = ctx.createBufferSource();
         src2.buffer = buf2;
         src2.connect(ctx.destination);
-        src2.start(now + stepSec);
+        src2.start(baseTime - singleTechSec);
       }
+    }
+
+    // نت اصلی خودِ sym (تکنیک اشاره‌دار) در زمان baseTime
+    const bufMain = resolveSound(sym);
+    if (bufMain) {
+      const srcMain = ctx.createBufferSource();
+      srcMain.buffer = bufMain;
+      srcMain.connect(ctx.destination);
+      srcMain.start(baseTime);
     }
 
     // فیدبک بصری روی دکمه
     btnEl.textContent = "▶ ...";
-    const totalMs = ESHARAH_TOTAL_DURATION + 100;
-    setTimeout(() => { btnEl.textContent = "▶ پلی"; }, totalMs);
+    const totalMs = (totalEsharahSec + 0.3) * 1000;
+    setTimeout(() => {
+      btnEl.textContent = "▶ پلی";
+    }, totalMs);
   }
+
+  // ══════════════════════════════════════
+  // INJECT ROW CONTEXT MENU DOM
+  // ══════════════════════════════════════
+  (function injectRowContextMenu() {
+    if (document.getElementById("row-context-menu")) return;
+    const el = document.createElement("div");
+    el.id = "row-context-menu";
+    document.body.appendChild(el);
+  })();
+
+  (function injectCellContextMenu() {
+    if (document.getElementById("cell-context-menu")) return;
+    const el = document.createElement("div");
+    el.id = "cell-context-menu";
+    document.body.appendChild(el);
+  })();
 
   return {
     newFile,
     cancelNew,
     confirmNew,
     openFile,
-    saveFile,
+    saveFile: saveFileWithSounds,
     saveAs,
     confirmSaveAs,
     insertRow,
     deleteRow,
     appendRow,
+    insertRowAfter,
     copyRow,
     pasteRow,
     pasteRowReplace,
@@ -2460,6 +3082,8 @@ const app = (() => {
     playOnce,
     playLoop,
     playLongLoop,
+    playFromSelected,
+    playOnlySelected,
     confirmLongLoop,
     startLongLoopTimer,
     saveWav,
