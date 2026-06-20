@@ -381,6 +381,13 @@ const app = (() => {
       color: "quadruplet",
       desc: "کوادروپله (4 نوت در فضای 3)",
     },
+    "3:4": {
+      label: "3:4",
+      slots: 3,
+      baseCols: 4,
+      color: "triplet",
+      desc: "تریوله گسترده (3 نوت در فضای 4)",
+    },
     "2:1": {
       label: "\u00BD",
       slots: 2,
@@ -2151,29 +2158,37 @@ const app = (() => {
     // 2. تنظیم ولوم روی صفر دقیقاً در لحظه شروع نت (به جای currentTime مرورگر)
     gainNode.gain.setValueAtTime(0, absStart);
 
+    // مقدار ولومی که در انتهای fade-out از آن شروع می‌شود
+    let sustainVolume;
+
     if (isShapeDynamic(dyn)) {
       const peak = DYNAMIC_GAIN.mf;
       const lo = peak * SHAPE_LOW_RATIO;
       if (dyn === "<") {
         gainNode.gain.setValueAtTime(lo, absStart);
         gainNode.gain.linearRampToValueAtTime(peak, absStart + shapeSpan);
+        sustainVolume = peak;
       } else if (dyn === ">") {
         gainNode.gain.setValueAtTime(peak, absStart);
         gainNode.gain.linearRampToValueAtTime(lo, absStart + shapeSpan);
+        sustainVolume = lo;
       } else {
         gainNode.gain.setValueAtTime(lo, absStart);
         gainNode.gain.linearRampToValueAtTime(peak, absStart + shapeSpan / 2);
         gainNode.gain.linearRampToValueAtTime(lo, absStart + shapeSpan);
+        sustainVolume = lo;
       }
     } else {
       // نوانس‌های عادی (ff, f, mf, p, pp)
       const volume = DYNAMIC_GAIN[dyn] !== undefined ? DYNAMIC_GAIN[dyn] : 0.75;
       // ولوم نت را در زمان شروع خودش به مقدار واقعی می‌رسانیم
       gainNode.gain.setValueAtTime(volume, absStart);
+      sustainVolume = volume;
     }
 
     // اعمال فید اوت (Fade out) در انتهای نت برای جلوگیری از صدای تق‌تق یا دیستورت
-    gainNode.gain.setValueAtTime(gainNode.gain.value, absStart + shapeSpan);
+    // از sustainVolume استفاده می‌کنیم نه gainNode.gain.value که ممکن است نادرست باشد
+    gainNode.gain.setValueAtTime(sustainVolume, absStart + shapeSpan);
     gainNode.gain.linearRampToValueAtTime(fadeEndVal, absStart + span);
   }
   // پخش از یک میزان خاص تا آخر (onlyOne=false) یا فقط همان میزان (onlyOne=true)
